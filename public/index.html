@@ -414,7 +414,7 @@
         async function deleteImage(filename) {
             if (!confirm('Deletar imagem?')) return;
             try {
-                await fetch(\`/api/images/\${filename}\`, { method: 'DELETE' });
+                await fetch(`/api/images/${filename}`, { method: 'DELETE' });
                 showToast('Imagem removida');
                 loadImages();
             } catch (err) { showToast('Falha ao deletar', 'error'); }
@@ -427,7 +427,7 @@
                 const leads = await response.json();
                 const table = document.getElementById('leadsTable');
                 table.innerHTML = leads.map(l => `
-                    < tr >
+                    <tr>
                         <td class="px-6 py-4 text-white font-medium">${l.name || 'Sem nome'}</td>
                         <td class="px-6 py-4 text-slate-400">${l.email}</td>
                         <td class="px-6 py-4">
@@ -438,8 +438,8 @@
                                 <i class="fas fa-user-minus"></i>
                             </button>
                         </td>
-                    </tr >
-                    `).join('') || '<tr><td colspan="4" class="p-12 text-center text-slate-500">Nenhum lead cadastrado ainda.</td></tr>';
+                    </tr>
+                `).join('') || '<tr><td colspan="4" class="p-12 text-center text-slate-500">Nenhum lead cadastrado ainda.</td></tr>';
             } catch (err) { console.error(err); }
         }
 
@@ -450,15 +450,15 @@
             try {
                 const res = await fetch('/api/marketing/leads/import', { method: 'POST', body: formData });
                 const result = await res.json();
-                showToast(`Sucesso! ${ result.imported } novos, ${ result.duplicates } duplicados.`);
+                showToast(`Sucesso! ${result.imported} novos, ${result.duplicates} duplicados.`);
                 loadLeads();
             } catch (err) { showToast('Falha na importação', 'error'); }
             input.value = '';
         }
 
         async function deleteLead(id) {
-            if(!confirm('Remover lead?')) return;
-            await fetch(\`/api/marketing/leads/\${id}\`, { method: 'DELETE' });
+            if (!confirm('Remover lead?')) return;
+            await fetch(`/api/marketing/leads/${id}`, { method: 'DELETE' });
             loadLeads();
         }
 
@@ -469,84 +469,84 @@
                 const templates = await response.json();
                 const grid = document.getElementById('templatesGrid');
                 grid.innerHTML = templates.map(t => `
-                < div class= "glass p-6 rounded-3xl glass-hover" >
+                    <div class="glass p-6 rounded-3xl glass-hover">
                         <h4 class="text-lg font-bold text-white mb-1">${t.name}</h4>
                         <p class="text-xs text-slate-500 mb-4">Assunto: ${t.subject}</p>
                         <div class="flex gap-2">
                             <button onclick='openTemplateEditor(${JSON.stringify(t).replace(/'/g, "&apos;")})' class="flex-1 py-2 bg-white/5 border border-white/10 rounded-xl text-xs font-bold hover:text-cyan-400 transition-all">Editar</button>
                             <button onclick="deleteTemplate('${t.id}')" class="p-2 text-slate-500 hover:text-rose-400 transition-all"><i class="fas fa-trash"></i></button>
-                        </div >
-                    </div >
-                    `).join('') || '<div class="col-span-full p-12 text-center text-slate-500">Nenhum modelo criado.</div>';
+                        </div>
+                    </div>
+                `).join('') || '<div class="col-span-full p-12 text-center text-slate-500">Nenhum modelo criado.</div>';
             } catch (err) { }
         }
 
         function openTemplateEditor(template = null) {
             const modal = document.getElementById('modalContent');
             modal.innerHTML = `
-                    < div class= "flex justify-between items-center mb-6" >
+                <div class="flex justify-between items-center mb-6">
                     <h2 class="text-2xl font-bold text-white">${template ? 'Editar Modelo' : 'Novo Modelo'}</h2>
                     <button onclick="closeModal()" class="text-slate-400 hover:text-rose-400"><i class="fas fa-times text-xl"></i></button>
-                </div >
-                    <div class="space-y-4">
-                        <input type="text" id="tpl-name" placeholder="Nome Interno" value="${template ? template.name : ''}" class="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-white outline-none">
-                            <input type="text" id="tpl-subject" placeholder="Assunto do Email" value="${template ? template.subject : ''}" class="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-white outline-none">
-                                <div class="grid grid-cols-1 md:grid-cols-2 gap-4 h-[400px]">
-                                    <textarea id="tpl-html" placeholder="HTML do Email..." class="w-full h-full bg-slate-900 border border-white/10 rounded-xl p-4 text-xs font-mono text-cyan-300 outline-none resize-none" oninput="updatePreview()">${template ? template.htmlContent : '<html><body><h1>Ola {{name}}!</h1></body></html>'}</textarea>
-                                    <div class="w-full h-full bg-white rounded-xl overflow-y-auto">
-                                        <iframe id="tpl-preview" class="w-full h-full border-0"></iframe>
-                                    </div>
-                                </div>
-                                <button onclick="saveTemplate('${template ? template.id : ''}')" class="w-full py-4 bg-cyan-500 text-white rounded-xl font-bold hover:bg-cyan-600 transition-all">Salvar Modelo</button>
-                            </div>
-                            `;
-                            document.getElementById('modalOverlay').classList.remove('hidden');
-                            document.getElementById('modalOverlay').classList.add('flex');
-                            updatePreview();
+                </div>
+                <div class="space-y-4">
+                    <input type="text" id="tpl-name" placeholder="Nome Interno" value="${template ? template.name : ''}" class="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-white outline-none">
+                    <input type="text" id="tpl-subject" placeholder="Assunto do Email" value="${template ? template.subject : ''}" class="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-white outline-none">
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4 h-[400px]">
+                        <textarea id="tpl-html" placeholder="HTML do Email..." class="w-full h-full bg-slate-900 border border-white/10 rounded-xl p-4 text-xs font-mono text-cyan-300 outline-none resize-none" oninput="updatePreview()">${template ? template.htmlContent : '<html><body><h1>Ola {{name}}!</h1></body></html>'}</textarea>
+                        <div class="w-full h-full bg-white rounded-xl overflow-y-auto">
+                            <iframe id="tpl-preview" class="w-full h-full border-0"></iframe>
+                        </div>
+                    </div>
+                    <button onclick="saveTemplate('${template ? template.id : ''}')" class="w-full py-4 bg-cyan-500 text-white rounded-xl font-bold hover:bg-cyan-600 transition-all">Salvar Modelo</button>
+                </div>
+            `;
+            document.getElementById('modalOverlay').classList.remove('hidden');
+            document.getElementById('modalOverlay').classList.add('flex');
+            updatePreview();
         }
 
-                            function updatePreview() {
+        function updatePreview() {
             const html = document.getElementById('tpl-html').value;
-                            const iframe = document.getElementById('tpl-preview');
-                            const doc = iframe.contentDocument || iframe.contentWindow.document;
-                            doc.open();
-                            doc.write(html.replace(/{{ name }}/gi, 'Cliente Exemplo'));
-                            doc.close();
+            const iframe = document.getElementById('tpl-preview');
+            const doc = iframe.contentDocument || iframe.contentWindow.document;
+            doc.open();
+            doc.write(html.replace(/{{name}}/gi, 'Cliente Exemplo'));
+            doc.close();
         }
 
-                            async function saveTemplate(id) {
+        async function saveTemplate(id) {
             const data = {
-                                id: id || undefined,
-                            name: document.getElementById('tpl-name').value,
-                            subject: document.getElementById('tpl-subject').value,
-                            htmlContent: document.getElementById('tpl-html').value
+                id: id || undefined,
+                name: document.getElementById('tpl-name').value,
+                subject: document.getElementById('tpl-subject').value,
+                htmlContent: document.getElementById('tpl-html').value
             };
-                            await fetch('/api/marketing/templates', {
-                                method: 'POST',
-                            headers: {'Content-Type': 'application/json'},
-                            body: JSON.stringify(data)
+            await fetch('/api/marketing/templates', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(data)
             });
-                            showToast('Modelo salvo!');
-                            closeModal();
-                            loadTemplates();
+            showToast('Modelo salvo!');
+            closeModal();
+            loadTemplates();
         }
 
-                            async function deleteTemplate(id) {
-            if(!confirm('Remover modelo?')) return;
-                            await fetch(\`/api/marketing/templates/\${id}\`, {method: 'DELETE' });
-                            loadTemplates();
+        async function deleteTemplate(id) {
+            if (!confirm('Remover modelo?')) return;
+            await fetch(`/api/marketing/templates/${id}`, { method: 'DELETE' });
+            loadTemplates();
         }
 
-                            // --- Campaigns ---
-                            async function loadCampaigns() {
+        // --- Campaigns ---
+        async function loadCampaigns() {
             try {
                 const response = await fetch('/api/marketing/campaigns');
-                            const campaigns = await response.json();
-                            const list = document.getElementById('campaignsList');
+                const campaigns = await response.json();
+                const list = document.getElementById('campaignsList');
                 list.innerHTML = campaigns.map(c => {
                     const progress = c.totalLeads ? Math.round((c.sentCount / c.totalLeads) * 100) : 0;
-                            const statusColors = {'draft': 'bg-slate-500/20 text-slate-400', 'running': 'bg-cyan-500/20 text-cyan-400', 'completed': 'bg-green-500/20 text-green-400', 'failed': 'bg-rose-500/20 text-rose-400' };
-                            return `
+                    const statusColors = { 'draft': 'bg-slate-500/20 text-slate-400', 'running': 'bg-cyan-500/20 text-cyan-400', 'completed': 'bg-green-500/20 text-green-400', 'failed': 'bg-rose-500/20 text-rose-400' };
+                    return `
                             <div class="glass p-6 rounded-3xl flex flex-col md:flex-row md:items-center justify-between gap-6">
                                 <div class="flex-1">
                                     <div class="flex items-center gap-3 mb-2">
@@ -568,13 +568,13 @@
             } catch (err) { }
         }
 
-                            async function openCampaignWizard() {
+        async function openCampaignWizard() {
             const templates = await (await fetch('/api/marketing/templates')).json();
-                            const leads = await (await fetch('/api/marketing/leads')).json();
+            const leads = await (await fetch('/api/marketing/leads')).json();
             const tags = [...new Set(leads.flatMap(l => l.tags))];
 
-                            const modal = document.getElementById('modalContent');
-                            modal.innerHTML = `
+            const modal = document.getElementById('modalContent');
+            modal.innerHTML = `
                             <div class="flex justify-between items-center mb-6">
                                 <h2 class="text-2xl font-bold text-white">Nova Campanha</h2>
                                 <button onclick="closeModal()" class="text-slate-400 hover:text-rose-400"><i class="fas fa-times text-xl"></i></button>
@@ -629,7 +629,7 @@
             };
             await fetch('/api/marketing/campaigns', {
                 method: 'POST',
-                headers: {'Content-Type': 'application/json'},
+                headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify(data)
             });
             showToast('Campanha criada!');
@@ -638,20 +638,20 @@
         }
 
         async function startCampaign(id) {
-            await fetch(\`/api/marketing/campaigns/\${id}/start\`, { method: 'POST' });
+            await fetch(`/api/marketing/campaigns/${id}/start`, { method: 'POST' });
             showToast('Campanha iniciada!', 'info');
             loadCampaigns();
         }
 
         async function stopCampaign(id) {
-            await fetch(\`/api/marketing/campaigns/\${id}/stop\`, { method: 'POST' });
+            await fetch(`/api/marketing/campaigns/${id}/stop`, { method: 'POST' });
             showToast('Campanha pausada', 'info');
             loadCampaigns();
         }
 
         async function deleteCampaign(id) {
-            if(!confirm('Remover campanha?')) return;
-            await fetch(\`/api/marketing/campaigns/\${id}\`, { method: 'DELETE' });
+            if (!confirm('Remover campanha?')) return;
+            await fetch(`/api/marketing/campaigns/${id}`, { method: 'DELETE' });
             loadCampaigns();
         }
 
@@ -678,7 +678,7 @@
             };
             await fetch('/api/marketing/config', {
                 method: 'POST',
-                headers: {'Content-Type': 'application/json'},
+                headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify(data)
             });
             showToast('Configurações salvas!');
@@ -731,7 +731,7 @@
             try {
                 const res = await fetch('/api/upload', { method: 'POST', body: formData });
                 const result = await res.json();
-                if(result.success) {
+                if (result.success) {
                     showToast('Sucesso!');
                     loadImages();
                 }
