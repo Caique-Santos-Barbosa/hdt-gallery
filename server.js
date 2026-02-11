@@ -102,6 +102,16 @@ app.post('/api/marketing/config/test', async (req, res) => {
 
   try {
     await transporter.verify();
+
+    // Also send a test email to confirm actual delivery
+    await transporter.sendMail({
+      from: `"${config.senderName}" <${config.senderEmail}>`,
+      to: config.senderEmail,
+      subject: 'Teste de Conexão - HDT Conecte',
+      text: 'Este é um e-mail de teste para confirmar que suas configurações de SMTP estão corretas!',
+      html: '<div style="font-family: Arial; padding: 20px; border: 1px solid #ddd; border-radius: 10px;"><h2>HDT Conecte</h2><p>Este é um e-mail de teste para confirmar que suas configurações de SMTP estão corretas!</p></div>'
+    });
+
     res.json({ success: true });
   } catch (err) {
     res.status(500).json({ success: false, error: err.message });
