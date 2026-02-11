@@ -616,13 +616,35 @@
                         </div>
 
                         <!-- Right Panel: Visual Preview/Edit -->
-                        <div class="lg:col-span-7 flex flex-col gap-2 overflow-hidden">
+                        <div class="lg:col-span-7 flex flex-col gap-2 overflow-hidden relative">
                             <label class="block text-[10px] font-bold text-slate-500 uppercase">Visualização Interativa</label>
+                            
+                            <!-- Floating Visual Toolbar -->
+                            <div id="visual-toolbar" class="absolute top-8 left-1/2 -translate-x-1/2 bg-slate-900/90 backdrop-blur-md border border-white/10 p-2 rounded-2xl flex items-center gap-3 shadow-2xl z-[100] hidden">
+                                <div class="flex items-center gap-1 border-r border-white/10 pr-2">
+                                    <button onclick="execCmd('bold')" class="p-2 hover:bg-cyan-500/20 rounded-lg text-white" title="Negrito"><i class="fas fa-bold"></i></button>
+                                    <button onclick="execCmd('italic')" class="p-2 hover:bg-cyan-500/20 rounded-lg text-white" title="Itálico"><i class="fas fa-italic"></i></button>
+                                    <button onclick="execCmd('underline')" class="p-2 hover:bg-cyan-500/20 rounded-lg text-white" title="Sublinhado"><i class="fas fa-underline"></i></button>
+                                </div>
+                                <div class="flex items-center gap-1 border-r border-white/10 pr-2">
+                                    <select onchange="execCmd('fontSize', this.value)" class="bg-transparent border-0 text-[10px] text-white outline-none cursor-pointer p-1 hover:bg-white/5 rounded">
+                                        <option value="3" class="bg-slate-900">Normal</option>
+                                        <option value="1" class="bg-slate-900">Pequeno</option>
+                                        <option value="5" class="bg-slate-900">Grande</option>
+                                        <option value="7" class="bg-slate-900">Gigante</option>
+                                    </select>
+                                    <input type="color" onchange="execCmd('foreColor', this.value)" class="w-6 h-6 p-0 border-0 bg-transparent cursor-pointer rounded overflow-hidden" title="Cor do Texto">
+                                </div>
+                                <div class="flex items-center gap-1">
+                                    <button onclick="execCmd('justifyLeft')" class="p-2 hover:bg-cyan-500/20 rounded-lg text-white"><i class="fas fa-align-left"></i></button>
+                                    <button onclick="execCmd('justifyCenter')" class="p-2 hover:bg-cyan-500/20 rounded-lg text-white"><i class="fas fa-align-center"></i></button>
+                                </div>
+                            </div>
+
                             <div class="flex-1 bg-white rounded-2xl overflow-hidden relative border border-white/10">
                                 <iframe id="tpl-preview" class="w-full h-full border-0"></iframe>
-                                <div id="visual-overlay" class="absolute inset-0 bg-transparent pointer-events-none border-2 border-cyan-500 hidden opacity-50"></div>
                             </div>
-                            <p class="text-[10px] text-slate-500 italic"><i class="fas fa-info-circle mr-1"></i> No modo visual, clique em qualquer texto para editar diretamente.</p>
+                            <p class="text-[10px] text-slate-500 italic"><i class="fas fa-info-circle mr-1"></i> Passe o mouse para destacar, clique para editar e arraste para mover.</p>
                         </div>
                     </div>
 
@@ -658,28 +680,115 @@
             }
         }
 
+        let selectedElement = null;
+
+        function execCmd(command, value = null) {
+            const iframe = document.getElementById('tpl-preview');
+            const doc = iframe.contentDocument || iframe.contentWindow.document;
+            doc.execCommand(command, false, value);
+            // Sync back
+            document.getElementById('tpl-html').value = doc.documentElement.outerHTML;
+        }
+
         function setupVisualEditor() {
             const iframe = document.getElementById('tpl-preview');
             const doc = iframe.contentDocument || iframe.contentWindow.document;
+            const toolbar = document.getElementById('visual-toolbar');
 
-            doc.addEventListener('click', (e) => {
+            // Inject Highlighter Styles
+            const style = doc.createElement('style');
+            style.textContent = `
+                [contenteditable="true"] { outline: 2px dashed #06b6d4 !important; outline-offset: 4px; border-radius: 4px; }
+                .hdt-hover { outline: 2px solid rgba(6, 182, 212, 0.3) !important; cursor: pointer; }
+                .hdt-dragging { opacity: 0.5; border: 2px dashed #06b6d4 !important; }
+            `;
+            doc.head.appendChild(style);
+
+            doc.addEventListener('mouseover', (e) => {
+                if (!isVisualMode) return;
                 if (e.target.tagName !== 'HTML' && e.target.tagName !== 'BODY') {
-                    // Make the clicked element editable
-                    e.target.contentEditable = "true";
-                    e.target.focus();
+                    e.target.classList.add('hdt-hover');
                 }
             });
 
+            doc.addEventListener('mouseout', (e) => {
+                e.target.classList.remove('hdt-hover');
+            });
+
+            doc.addEventListener('click', (e) => {
+                if (!isVisualMode) return;
+                if (e.target.tagName !== 'HTML' && e.target.tagName !== 'BODY') {
+                    e.preventDefault();
+                    if (selectedElement) selectedElement.contentEditable = "false";
+
+                    selectedElement = e.target;
+                    selectedElement.contentEditable = "true";
+                    selectedElement.focus();
+
+                    toolbar.classList.remove('hidden');
+                } else {
+                    toolbar.classList.add('hidden');
+                }
+            });
+
+            // Drag & Drop for reordering
+            let draggedEl = null;
+
+            doc.addEventListener('dragstart', (e) => {
+                if (!isVisualMode) return;
+                draggedEl = e.target;
+                e.target.classList.add('hdt-dragging');
+                e.dataTransfer.setData('text/plain', ''); // Required for FF
+            });
+
+            doc.addEventListener('dragover', (e) => {
+                if (!isVisualMode) return;
+                e.preventDefault();
+                const target = e.target;
+                if (target && target !== draggedEl && target.tagName !== 'HTML' && target.tagName !== 'BODY') {
+                    const rect = target.getBoundingClientRect();
+                    const midpoint = rect.top + rect.height / 2;
+                    if (e.clientY < midpoint) {
+                        target.parentNode.insertBefore(draggedEl, target);
+                    } else {
+                        target.parentNode.insertBefore(draggedEl, target.nextSibling);
+                    }
+                }
+            });
+
+            doc.addEventListener('dragend', (e) => {
+                if (draggedEl) {
+                    draggedEl.classList.remove('hdt-dragging');
+                    draggedEl = null;
+                    // Sync back to textarea
+                    document.getElementById('tpl-html').value = doc.documentElement.outerHTML;
+                }
+            });
+
+            // Make elements draggable if in visual mode
+            function updateDraggability() {
+                const all = doc.querySelectorAll('body *');
+                all.forEach(el => {
+                    if (el.tagName !== 'HTML' && el.tagName !== 'BODY') {
+                        el.draggable = isVisualMode;
+                    }
+                });
+            }
+
+            // Sync on input
             doc.addEventListener('input', () => {
-                // Sync back to textarea
                 const html = doc.documentElement.outerHTML;
                 document.getElementById('tpl-html').value = html;
             });
 
-            // Prevent links from navigating inside preview
-            doc.addEventListener('click', (e) => {
-                if (e.target.tagName === 'A') e.preventDefault();
-            }, true);
+            // Monitor mode changes to update cursors/draggability
+            const observer = new MutationObserver(() => {
+                updateDraggability();
+                if (!isVisualMode) toolbar.classList.add('hidden');
+            });
+            observer.observe(document.getElementById('toggle-editor'), { attributes: true, childList: true, characterData: true });
+
+            updateDraggability();
         }
 
         function updatePreview() {
