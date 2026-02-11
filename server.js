@@ -217,8 +217,8 @@ app.post('/api/marketing/campaigns/:id/stop', (req, res) => {
   res.json({ success: true });
 });
 
-// App Start
-app.get('/:path*', (req, res) => {
+// App Start - Catch-all route for SPA
+app.get(/.*/, (req, res) => {
   res.sendFile(path.join(__dirname, 'public', 'index.html'));
 });
 
