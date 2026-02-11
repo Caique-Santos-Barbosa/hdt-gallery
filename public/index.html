@@ -168,12 +168,15 @@
 
                 if (result.success) {
                     showToast('Upload successful!');
-                    loadImages();
+                    await loadImages();
                 } else {
                     showToast(result.error || 'Upload failed', 'error');
                 }
             } catch (err) {
+                console.error('Upload error:', err);
                 showToast('Server error', 'error');
+            } finally {
+                fileInput.value = ''; // Reset to allow re-uploading the same file
             }
         }
 
@@ -245,9 +248,10 @@
                 const result = await response.json();
                 if (result.success) {
                     showToast('Image deleted');
-                    loadImages();
+                    await loadImages();
                 }
             } catch (err) {
+                console.error('Delete error:', err);
                 showToast('Delete failed', 'error');
             }
         }
