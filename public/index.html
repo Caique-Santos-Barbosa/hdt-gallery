@@ -898,16 +898,26 @@
                                     </div>
                                     <div id="acc-config" class="space-y-4">
                                         <div>
-                                            <label class="block text-[10px] text-slate-500 mb-2">Fundo do E-mail</label>
+                                            <label class="block text-[10px] text-slate-500 mb-2">Fundo Geral (Body)</label>
                                             <div class="flex items-center gap-2">
                                                 <input type="color" oninput="updateBodyStyle('backgroundColor', this.value)" class="w-10 h-10 rounded-lg bg-slate-800 border-0 cursor-pointer p-0 overflow-hidden">
                                                 <input type="text" placeholder="#f4f4f5" class="flex-1 bg-slate-900/50 border border-white/10 rounded-lg px-3 py-2 text-xs text-white outline-none" oninput="updateBodyStyle('backgroundColor', this.value)">
                                             </div>
                                         </div>
                                         <div>
+                                            <label class="block text-[10px] text-slate-500 mb-2">Fundo do Conteúdo (Container)</label>
+                                            <div class="space-y-2">
+                                                <div class="flex items-center gap-2">
+                                                    <input type="color" oninput="updateContainerStyle('backgroundColor', this.value)" class="w-8 h-8 rounded-lg bg-slate-800 border-0 cursor-pointer p-0 overflow-hidden">
+                                                    <input type="text" placeholder="Cor de Fundo" class="flex-1 bg-slate-900/50 border border-white/10 rounded-lg px-3 py-2 text-xs text-white outline-none" oninput="updateContainerStyle('backgroundColor', this.value)">
+                                                </div>
+                                                <input type="text" placeholder="URL da Imagem de Fundo" class="w-full bg-slate-900/50 border border-white/10 rounded-lg px-3 py-2 text-xs text-white outline-none focus:border-cyan-500" oninput="updateContainerStyle('backgroundImage', 'url(' + this.value + ')')">
+                                            </div>
+                                        </div>
+                                        <div>
                                             <label class="block text-[10px] text-slate-500 mb-2">Largura do Conteúdo</label>
                                             <div class="flex items-center gap-3">
-                                                <input type="range" min="400" max="900" value="600" class="flex-1 accent-cyan-500" oninput="updateContainerWidth(this.value)">
+                                                <input type="range" min="400" max="1000" value="600" class="flex-1 accent-cyan-500" oninput="updateContainerWidth(this.value)">
                                                 <span id="width-val" class="text-[10px] font-bold text-white w-12 text-right">600px</span>
                                             </div>
                                         </div>
@@ -948,23 +958,45 @@
                                     </div>
                                 </div>
 
-                                <!-- Accordion: Element Style (Shows only when selected) -->
+                                <!-- Accordion: Element Style -->
                                 <div id="acc-style-container" class="space-y-4 hidden">
                                     <div class="flex items-center justify-between cursor-pointer group" onclick="toggleAccordion('acc-style')">
-                                        <span class="text-[11px] font-bold text-cyan-400 uppercase tracking-widest tracking-widest">Estilo do Elemento</span>
+                                        <span class="text-[11px] font-bold text-cyan-400 uppercase tracking-widest">Estilos Avançados</span>
                                         <i class="fas fa-chevron-down text-[10px] transition-transform rotate-180" id="icon-acc-style"></i>
                                     </div>
                                     <div id="acc-style" class="space-y-5">
-                                        <div class="grid grid-cols-2 gap-3">
-                                            <div>
-                                                <label class="block text-[10px] text-slate-500 mb-1">Tamanho Fonte</label>
-                                                <input type="number" id="style-font-size" oninput="updateElStyle('fontSize', this.value + 'px')" class="w-full bg-slate-900 border border-white/10 rounded-lg px-3 py-2 text-xs text-white outline-none focus:border-cyan-500">
-                                            </div>
-                                            <div>
-                                                <label class="block text-[10px] text-slate-500 mb-1">Cor Texto</label>
-                                                <input type="color" id="style-font-color" oninput="updateElStyle('color', this.value)" class="w-full h-10 rounded-lg bg-slate-800 border-0 cursor-pointer p-0 overflow-hidden">
+                                        <!-- Text specific styles -->
+                                        <div id="text-style-controls" class="space-y-5">
+                                            <div class="grid grid-cols-2 gap-3">
+                                                <div>
+                                                    <label class="block text-[10px] text-slate-500 mb-1">Tamanho Fonte</label>
+                                                    <input type="number" id="style-font-size" oninput="updateElStyle('fontSize', this.value + 'px')" class="w-full bg-slate-900 border border-white/10 rounded-lg px-3 py-2 text-xs text-white outline-none focus:border-cyan-500">
+                                                </div>
+                                                <div>
+                                                    <label class="block text-[10px] text-slate-500 mb-1">Cor Texto</label>
+                                                    <input type="color" id="style-font-color" oninput="updateElStyle('color', this.value)" class="w-full h-10 rounded-lg bg-slate-800 border-0 cursor-pointer p-0 overflow-hidden">
+                                                </div>
                                             </div>
                                         </div>
+
+                                        <!-- Image specific styles -->
+                                        <div id="image-style-controls" class="space-y-5 hidden">
+                                            <div>
+                                                <label class="block text-[10px] text-slate-500 mb-1">Link/URL da Imagem</label>
+                                                <input type="text" id="style-img-src" oninput="updateImageUrl(this.value)" class="w-full bg-slate-900 border border-white/10 rounded-lg px-3 py-2 text-xs text-white outline-none focus:border-cyan-500">
+                                            </div>
+                                            <div class="grid grid-cols-2 gap-3">
+                                                <div>
+                                                    <label class="block text-[10px] text-slate-500 mb-1">Largura (%)</label>
+                                                    <input type="number" id="style-img-width" oninput="updateElStyle('width', this.value + '%')" class="w-full bg-slate-900 border border-white/10 rounded-lg px-3 py-2 text-xs text-white outline-none">
+                                                </div>
+                                                <div>
+                                                    <label class="block text-[10px] text-slate-500 mb-1">Arredondar (px)</label>
+                                                    <input type="number" id="style-img-radius" oninput="updateElStyle('borderRadius', this.value + 'px')" class="w-full bg-slate-900 border border-white/10 rounded-lg px-3 py-2 text-xs text-white outline-none">
+                                                </div>
+                                            </div>
+                                        </div>
+
                                         <div>
                                             <label class="block text-[10px] font-bold text-slate-500 uppercase flex items-center gap-2 mb-3">
                                                 <i class="fas fa-expand text-[9px]"></i> Espaçamento (Padding px)
@@ -1052,6 +1084,20 @@
             syncToTextarea();
         }
 
+        function updateContainerStyle(prop, val) {
+            const iframe = document.getElementById('tpl-preview');
+            const doc = iframe.contentDocument || iframe.contentWindow.document;
+            const container = doc.getElementById('email-container');
+            if (container) {
+                if (prop === 'backgroundImage') {
+                    container.style.backgroundSize = 'cover';
+                    container.style.backgroundPosition = 'center';
+                }
+                container.style[prop] = val;
+                syncToTextarea();
+            }
+        }
+
         function updateContainerWidth(px) {
             const iframe = document.getElementById('tpl-preview');
             const doc = iframe.contentDocument || iframe.contentWindow.document;
@@ -1067,6 +1113,12 @@
         function updateElStyle(prop, val) {
             if (!selectedEl) return;
             selectedEl.style[prop] = val;
+            syncToTextarea();
+        }
+
+        function updateImageUrl(url) {
+            if (!selectedEl || selectedEl.tagName !== 'IMG') return;
+            selectedEl.src = url;
             syncToTextarea();
         }
 
@@ -1086,12 +1138,19 @@
         function syncToTextarea() {
             const iframe = document.getElementById('tpl-preview');
             const doc = iframe.contentDocument || iframe.contentWindow.document;
-            // Clean up builder classes before syncing
-            const cleanHtml = doc.documentElement.outerHTML
+
+            // Clone the document to clean it up without affecting the live preview
+            const clone = doc.documentElement.cloneNode(true);
+            const builderStyle = clone.querySelector('#builder-styles');
+            if (builderStyle) builderStyle.remove();
+
+            let html = clone.outerHTML
                 .replace(/ hdt-hover/g, '')
                 .replace(/ hdt-selected/g, '')
-                .replace(/ contenteditable="true"/g, '');
-            document.getElementById('tpl-html').value = cleanHtml;
+                .replace(/ contenteditable="true"/g, '')
+                .replace(/ contenteditable="false"/g, '');
+
+            document.getElementById('tpl-html').value = html;
         }
 
         function addBlock(type) {
@@ -1175,12 +1234,23 @@
 
         function syncSidebarWithEl(el) {
             const style = window.getComputedStyle(el);
-            document.getElementById('style-font-size').value = parseInt(style.fontSize) || 16;
 
-            const rgb = style.color.match(/\\d+/g);
-            if (rgb) {
-                const hex = "#" + rgb.map(x => parseInt(x).toString(16).padStart(2, '0')).join('');
-                document.getElementById('style-font-color').value = hex;
+            // Toggle controls based on element type
+            const isImg = el.tagName === 'IMG';
+            document.getElementById('text-style-controls').classList.toggle('hidden', isImg);
+            document.getElementById('image-style-controls').classList.toggle('hidden', !isImg);
+
+            if (isImg) {
+                document.getElementById('style-img-src').value = el.src || '';
+                document.getElementById('style-img-width').value = parseInt(el.style.width) || 100;
+                document.getElementById('style-img-radius').value = parseInt(el.style.borderRadius) || 0;
+            } else {
+                document.getElementById('style-font-size').value = parseInt(style.fontSize) || 16;
+                const rgb = style.color.match(/\d+/g);
+                if (rgb) {
+                    const hex = "#" + rgb.slice(0, 3).map(x => parseInt(x).toString(16).padStart(2, '0')).join('');
+                    document.getElementById('style-font-color').value = hex;
+                }
             }
 
             document.getElementById('style-pt').value = parseInt(style.paddingTop) || 0;
