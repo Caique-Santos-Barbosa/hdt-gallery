@@ -155,6 +155,8 @@ const storage = {
         const db = await getDb();
         log.id = Date.now() + Math.random().toString(36).substr(2, 9);
         log.sentAt = new Date();
+        log.openedAt = null;
+        log.clicks = [];
         db.logs.push(log);
 
         const campIndex = db.campaigns.findIndex(c => c.id === log.campaignId);
@@ -164,6 +166,31 @@ const storage = {
         }
 
         await saveDb(db);
+    },
+    async updateLog(logId, data) {
+        const db = await getDb();
+        const index = db.logs.findIndex(l => l.id === logId);
+        if (index > -1) {
+            const log = db.logs[index];
+            const campaignId = log.campaignId;
+
+            // Track if this is the FIRST open/click to avoid double counting
+            const isFirstOpen = data.openedAt && !log.openedAt;
+            const isFirstClick = data.lastClickedAt && !log.lastClickedAt;
+
+            db.logs[index] = { ...db.logs[index], ...data };
+
+            const campIndex = db.campaigns.findIndex(c => c.id === campaignId);
+            if (campIndex > -1) {
+                if (isFirstOpen) {
+                    db.campaigns[campIndex].openCount = (db.campaigns[campIndex].openCount || 0) + 1;
+                }
+                if (isFirstClick) {
+                    db.campaigns[campIndex].clickCount = (db.campaigns[campIndex].clickCount || 0) + 1;
+                }
+            }
+            await saveDb(db);
+        }
     },
     async getLogs(campaignId) {
         const db = await getDb();
@@ -199,6 +226,25 @@ const storage = {
         const db = await getDb();
         db.forms = db.forms.filter(f => f.id !== id);
         await saveDb(db);
+    },
+    async incrementFormMetric(id, metric) {
+        const db = await getDb();
+        const index = db.forms.findIndex(f => f.id === id);
+        if (index > -1) {
+            if (!db.forms[index][metric]) db.forms[index][metric] = 0;
+            db.forms[index][metric]++;
+            await saveDb(db);
+        }
+    },
+    async updateUser(id, data) {
+        const db = await getDb();
+        const index = db.users.findIndex(u => u.id === id);
+        if (index > -1) {
+            db.users[index] = { ...db.users[index], ...data };
+            await saveDb(db);
+            return db.users[index];
+        }
+        return null;
     }
 };
 

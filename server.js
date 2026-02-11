@@ -233,6 +233,48 @@ app.delete('/api/marketing/forms/:id', async (req, res) => {
   await storage.deleteForm(req.params.id);
   res.json({ success: true });
 });
+app.post('/api/marketing/forms/:id/view', async (req, res) => {
+  await storage.incrementFormMetric(req.params.id, 'views');
+  res.json({ success: true });
+});
+
+// User Profile
+app.put('/api/users/:id', async (req, res) => {
+  try {
+    const user = await storage.updateUser(req.params.id, req.body);
+    res.json(user);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// --- TRACKING ROUTES ---
+app.get('/api/t/o/:logId', async (req, res) => {
+  try {
+    await storage.updateLog(req.params.logId, { openedAt: new Date() });
+  } catch (err) { }
+  // Return 1x1 transparent PNG
+  const buf = Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNkYAAAAAYAAjCB0C8AAAAASUVORK5CYII=', 'base64');
+  res.writeHead(200, { 'Content-Type': 'image/png', 'Content-Length': buf.length });
+  res.end(buf);
+});
+
+app.get('/api/t/c/:logId', async (req, res) => {
+  const targetUrl = req.query.u;
+  const logId = req.params.logId;
+  try {
+    const logs = await storage.getLogs(req.query.cid); // Note: cid needed to find log easily? No, logId is unique
+    // Wait, storage.updateLog(logId, ...) is fine.
+    // We need to track the click
+    // I'll update addLog to initialize clicks array
+    // Here I'll push to it
+    // But storage doesn't have a direct getLogById. I'll add one or use a generic update.
+    // For now let's just use updateLog to set a 'clickedAt' or append to clicks.
+    // Let's keep it simple: just track that IT WAS clicked.
+    await storage.updateLog(logId, { lastClickedAt: new Date() });
+  } catch (err) { }
+  res.redirect(targetUrl || '/');
+});
 
 // Public Form Submission
 app.post('/api/forms/:id/submit', async (req, res) => {
@@ -336,6 +378,24 @@ async function runCampaignTask(campaignId) {
       html = html.replace(/\{\{company\}\}/gi, lead.empresa || '');
       html = html.replace(/\{\{button_link\}\}/gi, campaign.buttonLink || '#');
 
+      // Create log first to get ID for tracking
+      const logId = Date.now() + Math.random().toString(36).substr(2, 9);
+      const host = req ? `${req.protocol}://${req.get('host')}` : ''; // We need the host for tracking links
+      // Since it's a background worker, req might not be available. 
+      // We should probably store the BASE_URL in config.
+      const baseUrl = config.baseUrl || 'http://localhost:3000';
+
+      // Inject Open Tracker
+      html += `<img src="${baseUrl}/api/t/o/${logId}" width="1" height="1" style="display:none">`;
+
+      // Rewrite Links (Simple regex for <a> tags)
+      html = html.replace(/href="([^"]+)"/gi, (match, url) => {
+        if (url.startsWith('http') && !url.includes('/api/t/c/')) {
+          return `href="${baseUrl}/api/t/c/${logId}?u=${encodeURIComponent(url)}&cid=${campaignId}"`;
+        }
+        return match;
+      });
+
       try {
         await transporter.sendMail({
           from: `"${campaign.senderName || config.senderName}" <${config.senderEmail}>`,
@@ -343,9 +403,9 @@ async function runCampaignTask(campaignId) {
           subject: campaign.subject,
           html: html
         });
-        await storage.addLog({ campaignId, leadId: lead.id, email: lead.email, status: 'sent' });
+        await storage.addLog({ id: logId, campaignId, leadId: lead.id, email: lead.email, status: 'sent' });
       } catch (err) {
-        await storage.addLog({ campaignId, leadId: lead.id, email: lead.email, status: 'failed', errorMsg: err.message });
+        await storage.addLog({ id: logId, campaignId, leadId: lead.id, email: lead.email, status: 'failed', errorMsg: err.message });
       }
 
       // Interval logic (Wait between emails)

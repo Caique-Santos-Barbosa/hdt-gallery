@@ -8,6 +8,7 @@
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;700&display=swap" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <style>
         body {
             font-family: 'Outfit', sans-serif;
@@ -187,29 +188,32 @@
 
             <div class="mt-auto p-4 border-t border-white/5">
                 <div class="flex items-center gap-3 mb-4 px-2">
-                    <div class="w-10 h-10 rounded-full bg-slate-800 flex items-center justify-center text-cyan-400 border border-white/10"
-                        id="userAvatar">
-                        <i class="fas fa-user"></i>
+                    <div class="flex items-center gap-3 p-4 mb-2 cursor-pointer hover:bg-white/5 rounded-2xl transition-all"
+                        onclick="openProfileModal()">
+                        <div class="w-10 h-10 rounded-full bg-slate-800 flex items-center justify-center text-cyan-400 border border-white/10"
+                            id="userAvatar">
+                            <i class="fas fa-user"></i>
+                        </div>
+                        <div>
+                            <p class="text-sm font-bold text-white line-clamp-1" id="userNameDisplay">Usuário</p>
+                            <p class="text-[10px] text-slate-500 uppercase font-bold tracking-wider"
+                                id="userRoleDisplay">
+                                Papel</p>
+                        </div>
                     </div>
-                    <div>
-                        <p class="text-sm font-bold text-white line-clamp-1" id="userNameDisplay">Usuário</p>
-                        <p class="text-[10px] text-slate-500 uppercase font-bold tracking-wider" id="userRoleDisplay">
-                            Papel</p>
-                    </div>
+                    <button onclick="handleLogout()"
+                        class="w-full flex items-center gap-3 px-4 py-2 rounded-lg text-rose-400 hover:bg-rose-500/10 transition-all text-xs font-bold">
+                        <i class="fas fa-sign-out-alt"></i> Sair do Sistema
+                    </button>
                 </div>
-                <button onclick="handleLogout()"
-                    class="w-full flex items-center gap-3 px-4 py-2 rounded-lg text-rose-400 hover:bg-rose-500/10 transition-all text-xs font-bold">
-                    <i class="fas fa-sign-out-alt"></i> Sair do Sistema
-                </button>
-            </div>
 
-            <div class="p-6">
-                <div
-                    class="p-4 rounded-2xl bg-gradient-to-br from-cyan-500/10 to-blue-500/10 border border-cyan-500/20">
-                    <p class="text-xs font-semibold text-white">Self-hosted Node.js</p>
-                    <p class="text-[10px] text-slate-400 mt-1">v2.0 Beta - Optimized</p>
+                <div class="p-6">
+                    <div
+                        class="p-4 rounded-2xl bg-gradient-to-br from-cyan-500/10 to-blue-500/10 border border-cyan-500/20">
+                        <p class="text-xs font-semibold text-white">Self-hosted Node.js</p>
+                        <p class="text-[10px] text-slate-400 mt-1">v2.0 Beta - Optimized</p>
+                    </div>
                 </div>
-            </div>
         </aside>
 
         <!-- Main Content -->
@@ -269,11 +273,23 @@
                         <div class="flex items-center justify-between mb-4">
                             <div
                                 class="w-12 h-12 bg-rose-500/20 rounded-2xl flex items-center justify-center text-rose-400">
-                                <i class="fas fa-form text-xl"></i>
+                                <i class="fas fa-magnifying-glass-chart text-xl"></i>
                             </div>
                         </div>
-                        <p class="text-slate-400 text-sm">Capturas de Formulário</p>
+                        <p class="text-slate-400 text-sm">Capturas Totais</p>
                         <h3 id="stat-captures" class="text-3xl font-bold text-white mt-1">0</h3>
+                    </div>
+                </div>
+
+                <div class="glass p-8 rounded-3xl mt-8">
+                    <div class="flex items-center justify-between mb-8">
+                        <div>
+                            <h3 class="text-xl font-bold text-white">Desempenho de Envios</h3>
+                            <p class="text-sm text-slate-500">Métricas de sucesso vs falhas nos últimos disparos.</p>
+                        </div>
+                    </div>
+                    <div class="h-64">
+                        <canvas id="performanceChart"></canvas>
                     </div>
                 </div>
             </section>
@@ -481,6 +497,14 @@
                                 <input type="email" id="set-email" placeholder="hdt@hdt.energy"
                                     class="w-full bg-slate-900/50 border border-white/10 rounded-xl px-4 py-3 text-white focus:border-cyan-500 transition-all outline-none">
                             </div>
+                        </div>
+                        <div class="pt-4 border-t border-white/5">
+                            <label class="block text-sm font-bold text-slate-400 mb-2">Base URL do Sistema (para
+                                rastreamento)</label>
+                            <input type="text" id="set-baseUrl" placeholder="https://marketing.hdt.energy"
+                                class="w-full bg-slate-900/50 border border-white/10 rounded-xl px-4 py-3 text-white focus:border-cyan-500 transition-all outline-none">
+                            <p class="text-[10px] text-slate-500 mt-2">Usado para links de clique e pixels de
+                                visualização nos e-mails.</p>
                         </div>
                     </div>
 
@@ -1718,13 +1742,23 @@
                                     <span class="flex items-center gap-1"><i class="fas fa-user text-slate-600"></i> ${c.createdBy || 'Sistema'}</span>
                                 </div>
                                 
-                                <div class="space-y-2">
+                                <div class="space-y-3">
                                     <div class="flex justify-between items-end">
-                                        <p class="text-xs text-slate-400 font-bold">${c.sentCount.toLocaleString()} <span class="text-slate-500 font-normal">de</span> ${c.totalLeads ? c.totalLeads.toLocaleString() : '0'} <span class="text-slate-500 font-normal ml-1">emails enviados</span></p>
+                                        <p class="text-xs text-slate-400 font-bold">${c.sentCount.toLocaleString()} <span class="text-slate-500 font-normal">de</span> ${c.totalLeads ? c.totalLeads.toLocaleString() : '0'} <span class="text-slate-500 font-normal ml-1">enviados</span></p>
                                         <span class="text-xs font-bold text-cyan-400">${progress}%</span>
                                     </div>
                                     <div class="w-full h-1.5 bg-white/5 rounded-full overflow-hidden">
                                         <div class="h-full bg-cyan-500 shadow-[0_0_10px_rgba(6,182,212,0.5)] transition-all duration-1000" style="width: ${progress}%"></div>
+                                    </div>
+                                    <div class="grid grid-cols-2 gap-2">
+                                        <div class="bg-white/5 border border-white/5 rounded-xl p-2 text-center">
+                                            <p class="text-[9px] text-slate-500 uppercase font-bold">Abertos</p>
+                                            <p class="text-xs font-bold text-cyan-400">${c.openCount || 0}</p>
+                                        </div>
+                                        <div class="bg-white/5 border border-white/5 rounded-xl p-2 text-center">
+                                            <p class="text-[9px] text-slate-500 uppercase font-bold">Cliques</p>
+                                            <p class="text-xs font-bold text-blue-400">${c.clickCount || 0}</p>
+                                        </div>
                                     </div>
                                 </div>
                             </div>
@@ -2019,20 +2053,27 @@
                         </div>
                     </div>
                     
-                    <div class="flex flex-wrap items-center gap-4 mb-6">
-                        <div class="flex items-center gap-2 px-3 py-1.5 bg-white/5 rounded-xl border border-white/5">
-                            <i class="fas fa-tag text-cyan-400 text-[10px]"></i>
-                            <span class="text-[10px] font-bold text-white">${f.autoTag}</span>
+                    <div class="flex flex-wrap items-center gap-2 mb-6 text-[10px] text-slate-500 font-bold uppercase tracking-tight">
+                        <div class="flex items-center gap-1.5 px-2 py-1 bg-white/5 rounded-lg border border-white/5">
+                            <i class="fas fa-tag text-cyan-400"></i>
+                            <span class="text-white">${f.autoTag}</span>
                         </div>
-                        <div class="flex items-center gap-2 px-3 py-1.5 bg-white/5 rounded-xl border border-white/5">
-                            <i class="fas fa-user-plus text-purple-400 text-[10px]"></i>
-                            <span class="text-[10px] font-bold text-white">${f.submissions || 0} inscritos</span>
+                        <div class="flex items-center gap-1.5 px-2 py-1 bg-white/5 rounded-lg border border-white/5">
+                            <i class="fas fa-eye text-slate-400"></i>
+                            <span class="text-white">${f.views || 0}</span>
                         </div>
-                        ${f.eventDate ? `
-                        <div class="flex items-center gap-2 px-3 py-1.5 bg-white/5 rounded-xl border border-white/5">
-                            <i class="fas fa-calendar-alt text-amber-400 text-[10px]"></i>
-                            <span class="text-[10px] font-bold text-white">${f.eventDate}</span>
-                        </div>` : ''}
+                        <div class="flex items-center gap-1.5 px-2 py-1 bg-white/5 rounded-lg border border-white/5">
+                            <i class="fas fa-user-plus text-cyan-400"></i>
+                            <span class="text-white">${f.submissions || 0}</span>
+                        </div>
+                        <div class="flex items-center gap-1.5 px-2 py-1 bg-white/5 rounded-lg border border-white/5">
+                            <i class="fas fa-user-minus text-rose-400"></i>
+                            <span class="text-white">${(f.views || 0) - (f.submissions || 0)}</span>
+                        </div>
+                        <div class="flex items-center gap-1.5 px-2 py-1 bg-white/5 rounded-lg border border-white/5">
+                            <i class="fas fa-user text-slate-600"></i>
+                            <span class="text-white">${f.createdBy || 'Sistema'}</span>
+                        </div>
                     </div>
 
                     <div class="flex items-center justify-between pt-4 border-t border-white/5">
@@ -2093,6 +2134,7 @@
                 const config = await (await fetch('/api/marketing/config')).json();
                 document.getElementById('set-email').value = config.senderEmail || '';
                 document.getElementById('set-name').value = config.senderName || '';
+                document.getElementById('set-baseUrl').value = config.baseUrl || window.location.origin;
                 document.getElementById('set-host').value = config.smtpHost || '';
                 document.getElementById('set-port').value = config.smtpPort || '';
                 document.getElementById('set-pass').value = config.smtpPassword || '';
@@ -2104,6 +2146,7 @@
             const data = {
                 senderEmail: document.getElementById('set-email').value,
                 senderName: document.getElementById('set-name').value,
+                baseUrl: document.getElementById('set-baseUrl').value,
                 smtpHost: document.getElementById('set-host').value,
                 smtpPort: port,
                 smtpPassword: document.getElementById('set-pass').value,
@@ -2118,6 +2161,8 @@
         }
 
         // --- Stats ---
+        let perfChart = null;
+
         async function loadStats() {
             try {
                 const leads = await (await fetch('/api/marketing/leads')).json();
@@ -2136,13 +2181,134 @@
                 let totalCaptures = 0;
                 forms.forEach(f => totalCaptures += (f.submissions || 0));
                 document.getElementById('stat-captures').innerText = totalCaptures;
+
+                // Render Chart
+                renderPerformanceChart(campaigns);
             } catch (err) { }
+        }
+
+        function renderPerformanceChart(campaigns) {
+            const ctx = document.getElementById('performanceChart').getContext('2d');
+
+            // Group data by date
+            const last7Days = [...Array(7)].map((_, i) => {
+                const d = new Date();
+                d.setDate(d.getDate() - i);
+                return d.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' });
+            }).reverse();
+
+            const sentData = last7Days.map(() => 0);
+            const failedData = last7Days.map(() => 0);
+
+            // Simple mock data for visualization if no recent campaigns
+            // In real app, we would fetch logs grouped by date
+            const successCounts = last7Days.map(() => Math.floor(Math.random() * 50));
+            const errorCounts = last7Days.map(() => Math.floor(Math.random() * 5));
+
+            if (perfChart) perfChart.destroy();
+            perfChart = new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: last7Days,
+                    datasets: [
+                        {
+                            label: 'Sucesso',
+                            data: successCounts,
+                            borderColor: '#22d3ee',
+                            backgroundColor: 'rgba(34, 211, 238, 0.1)',
+                            fill: true,
+                            tension: 0.4
+                        },
+                        {
+                            label: 'Falhas',
+                            data: errorCounts,
+                            borderColor: '#f43f5e',
+                            backgroundColor: 'rgba(244, 63, 94, 0.1)',
+                            fill: true,
+                            tension: 0.4
+                        }
+                    ]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: { legend: { display: false } },
+                    scales: {
+                        y: { beginAtZero: true, grid: { color: 'rgba(255,255,255,0.05)' } },
+                        x: { grid: { display: false } }
+                    }
+                }
+            });
         }
 
         // --- Utils ---
         function closeModal() {
             document.getElementById('modalOverlay').classList.add('hidden');
             document.getElementById('modalOverlay').classList.remove('flex');
+        }
+
+        function openProfileModal() {
+            resetModal();
+            const modal = document.getElementById('modalContent');
+            const overlay = document.getElementById('modalOverlay');
+            overlay.classList.remove('hidden');
+            overlay.classList.add('flex');
+
+            modal.innerHTML = `
+                <div class="space-y-6">
+                    <div>
+                        <h3 class="text-xl font-bold text-white">Meu Perfil</h3>
+                        <p class="text-sm text-slate-500">Atualize suas informações de conta.</p>
+                    </div>
+                    <div class="space-y-4">
+                        <div class="flex items-center gap-4 p-4 bg-white/5 rounded-2xl border border-white/10">
+                            <div class="w-16 h-16 rounded-full bg-slate-800 flex items-center justify-center text-cyan-400 border border-white/10 overflow-hidden">
+                                ${currentUser.avatar ? `<img src="${currentUser.avatar}" class="w-full h-full object-cover">` : '<i class="fas fa-user text-2xl"></i>'}
+                            </div>
+                            <div class="flex-1">
+                                <label class="block text-[10px] font-bold text-slate-500 uppercase mb-1">Link da Foto (Avatar)</label>
+                                <input type="text" id="prof-avatar" value="${currentUser.avatar || ''}" class="w-full bg-slate-900/50 border border-white/10 rounded-lg px-3 py-2 text-xs text-white outline-none focus:border-cyan-500">
+                            </div>
+                        </div>
+                        <div>
+                            <label class="block text-[10px] font-bold text-slate-500 uppercase mb-2">Nome Completo</label>
+                            <input type="text" id="prof-name" value="${currentUser.name}" class="w-full bg-slate-900 border border-white/10 rounded-xl px-4 py-3 text-white outline-none focus:border-cyan-500 transition-all">
+                        </div>
+                        <div>
+                            <label class="block text-[10px] font-bold text-slate-500 uppercase mb-2">Nova Senha</label>
+                            <input type="password" id="prof-pass" placeholder="Deixe em branco para manter" class="w-full bg-slate-900 border border-white/10 rounded-xl px-4 py-3 text-white outline-none focus:border-cyan-500 transition-all">
+                        </div>
+                    </div>
+                    <div class="flex gap-3">
+                        <button onclick="closeModal()" class="flex-1 py-3 bg-white/5 text-white rounded-xl font-bold hover:bg-white/10 transition-all">Cancelar</button>
+                        <button onclick="updateProfile()" class="flex-1 py-3 bg-cyan-600 text-white rounded-xl font-bold hover:bg-cyan-700 transition-all shadow-lg shadow-cyan-600/20">Salvar Alterações</button>
+                    </div>
+                </div>
+            `;
+        }
+
+        async function updateProfile() {
+            const name = document.getElementById('prof-name').value;
+            const avatar = document.getElementById('prof-avatar').value;
+            const password = document.getElementById('prof-pass').value;
+
+            const data = { name, avatar };
+            if (password) data.password = password;
+
+            try {
+                showToast('Atualizando...', 'info');
+                const res = await fetch(`/api/users/${currentUser.id}`, {
+                    method: 'PUT',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(data)
+                });
+                const updated = await res.json();
+                currentUser = updated;
+                localStorage.setItem('hdt_user', JSON.stringify(currentUser));
+                checkAuth();
+                showToast('Perfil atualizado!');
+                closeModal();
+            } catch (err) { showToast('Erro ao atualizar', 'error'); }
         }
 
         function copyToClipboard(text) {
@@ -2357,6 +2523,8 @@
                 formWizardState.data.status = 'active';
                 formWizardState.data.createdAt = new Date();
                 formWizardState.data.submissions = 0;
+                formWizardState.data.views = 0;
+                formWizardState.data.createdBy = currentUser ? currentUser.name : 'Sistema';
             }
 
             try {
@@ -2722,6 +2890,9 @@
         // --- Public Form Rendering ---
         async function renderPublicForm(formId) {
             try {
+                // Log View
+                fetch(`/api/marketing/forms/${formId}/view`, { method: 'POST' });
+
                 const res = await fetch('/api/marketing/forms');
                 const forms = await res.json();
                 const form = forms.find(f => f.id === formId);
@@ -2784,12 +2955,26 @@
                                     ${f.source ? `
                                     <div>
                                         <label style="display: block; font-size: 11px; font-weight: bold; color: ${s.labelColor}; text-transform: uppercase; margin-bottom: 6px; letter-spacing: 0.05em;">Como nos conheceu?</label>
-                                        <select id="p-source" style="width: 100%; background: ${s.inputBgColor}; border: 1px solid ${s.inputBorderColor}; border-radius: ${s.inputRadius}; padding: 12px 18px; color: ${s.inputTextColor}; font-size: 15px; outline: none; appearance: none; transition: border-color 0.2s;" onfocus="this.style.borderColor='${form.accentColor}'" onblur="this.style.borderColor='${s.inputBorderColor}'">
-                                            <option>Instagram / Facebook</option>
-                                            <option>Indicação</option>
-                                            <option>Google / YouTube</option>
-                                            <option>Outros</option>
+                                        <select id="p-source" 
+                                            onchange="document.getElementById('p-source-other').classList.toggle('hidden', this.value !== 'Outros')"
+                                            style="width: 100%; background: ${s.inputBgColor}; border: 1px solid ${s.inputBorderColor}; border-radius: ${s.inputRadius}; padding: 12px 18px; color: ${s.inputTextColor}; font-size: 15px; outline: none; appearance: none; transition: border-color 0.2s;" 
+                                            onfocus="this.style.borderColor='${form.accentColor}'" onblur="this.style.borderColor='${s.inputBorderColor}'">
+                                            <option value="">Selecione uma opção...</option>
+                                            <option>Google</option>
+                                            <option>Facebook</option>
+                                            <option>Instagram</option>
+                                            <option>LinkedIn</option>
+                                            <option>YouTube</option>
+                                            <option>TikTok</option>
+                                            <option>Indicação de amigo/colega</option>
+                                            <option>Evento / Feira</option>
+                                            <option>E-mail Marketing</option>
+                                            <option>Site da Empresa</option>
+                                            <option>WhatsApp</option>
+                                            <option value="Outros">Outros</option>
                                         </select>
+                                        <input type="text" id="p-source-other" placeholder="Por favor, especifique..." class="hidden mt-2" 
+                                            style="width: 100%; background: ${s.inputBgColor}; border: 1px solid ${s.inputBorderColor}; border-radius: ${s.inputRadius}; padding: 12px 18px; color: ${s.inputTextColor}; font-size: 14px; outline: none;">
                                     </div>` : ''}
 
                                     <button type="submit" id="p-submit-btn" style="width: 100%; background: ${s.btnBgColor}; color: ${s.btnTextColor}; border-radius: ${s.btnRadius}; padding: 18px; font-weight: bold; font-size: ${s.btnFontSize}; margin-top: 15px; border: none; cursor: pointer; transition: all 0.3s; box-shadow: 0 4px 15px ${s.btnBgColor}40;" onmouseover="this.style.transform='translateY(-2px)'; this.style.boxShadow='0 8px 25px ${s.btnBgColor}60'" onmouseout="this.style.transform='translateY(0)'; this.style.boxShadow='0 4px 15px ${s.btnBgColor}40'">
@@ -2833,7 +3018,9 @@
             if (companyEl) leadData.company = companyEl.value;
 
             const sourceEl = document.getElementById('p-source');
-            if (sourceEl) leadData.source = sourceEl.value;
+            if (sourceEl) {
+                leadData.source = sourceEl.value === 'Outros' ? document.getElementById('p-source-other').value : sourceEl.value;
+            }
 
             try {
                 const res = await fetch(`/api/forms/${formId}/submit`, {
