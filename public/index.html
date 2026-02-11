@@ -539,31 +539,40 @@
                 const templates = await response.json();
                 const grid = document.getElementById('templatesGrid');
                 grid.innerHTML = templates.map(t => `
-                    <div class="glass p-5 rounded-[2rem] flex flex-col gap-4 border border-white/5 hover:border-cyan-500/30 transition-all group">
-                        <div class="flex justify-between items-start">
-                            <div>
-                                <h4 class="text-lg font-bold text-white leading-tight">${t.name}</h4>
-                                <p class="text-[10px] text-slate-500 uppercase tracking-wider mt-1">${t.subject}</p>
-                            </div>
-                            <button onclick="deleteTemplate('${t.id}')" class="p-2 text-slate-600 hover:text-rose-400 transition-all opacity-0 group-hover:opacity-100">
-                                <i class="fas fa-trash-alt"></i>
-                            </button>
-                        </div>
-                        
-                        <div class="aspect-video bg-white rounded-2xl overflow-hidden pointer-events-none relative border border-white/10">
-                            <iframe srcdoc="${t.htmlContent.replace(/"/g, '&quot;').replace(/{{name}}/gi, 'Cliente')}" class="w-[1000px] h-[600px] border-0 origin-top-left scale-[0.25]"></iframe>
-                            <div class="absolute inset-0 bg-gradient-to-t from-slate-900/40 to-transparent"></div>
+                    <div class="glass p-4 rounded-3xl flex flex-col md:flex-row gap-6 border border-white/5 hover:border-cyan-500/20 transition-all group">
+                        <!-- Horizontal Preview -->
+                        <div class="w-full md:w-48 lg:w-64 h-32 md:h-auto bg-white rounded-2xl overflow-hidden pointer-events-none relative border border-white/10">
+                            <iframe srcdoc="${t.htmlContent.replace(/"/g, '&quot;').replace(/{{name}}/gi, 'Cliente')}" class="w-[1200px] h-[800px] border-0 origin-top-left scale-[0.2]"></iframe>
+                            <div class="absolute inset-0 bg-gradient-to-r from-transparent via-transparent to-slate-950/20"></div>
                         </div>
 
-                        <div class="flex gap-2">
-                            <button onclick='openTemplateEditor(${JSON.stringify(t).replace(/'/g, "&apos;")})' 
-                                class="flex-1 py-3 bg-white/5 border border-white/10 rounded-2xl text-xs font-bold text-white hover:bg-cyan-500 hover:text-white transition-all flex items-center justify-center gap-2">
-                                <i class="fas fa-edit"></i> Editar
-                            </button>
-                            <button onclick='copyTemplateHtml(${JSON.stringify(t.htmlContent).replace(/'/g, "&apos;")})'
-                                class="p-3 bg-white/5 border border-white/10 rounded-2xl text-slate-400 hover:text-cyan-400 transition-all">
-                                <i class="fas fa-code"></i>
-                            </button>
+                        <!-- Content -->
+                        <div class="flex-1 flex flex-col justify-between py-1">
+                            <div>
+                                <div class="flex justify-between items-start">
+                                    <h4 class="text-xl font-bold text-white leading-tight">${t.name}</h4>
+                                    <div class="flex gap-1">
+                                        <button onclick='openTemplateEditor(${JSON.stringify(t).replace(/'/g, "&apos;")})' class="p-2 text-slate-400 hover:text-cyan-400 transition-all">
+                                            <i class="fas fa-edit"></i>
+                                        </button>
+                                        <button onclick="deleteTemplate('${t.id}')" class="p-2 text-slate-500 hover:text-rose-400 transition-all opacity-0 group-hover:opacity-100">
+                                            <i class="fas fa-trash-alt"></i>
+                                        </button>
+                                    </div>
+                                </div>
+                                <p class="text-xs text-slate-400 mt-1 line-clamp-1">Assunto: ${t.subject}</p>
+                            </div>
+                            
+                            <div class="flex gap-3 mt-4">
+                                <button onclick='copyTemplateHtml(${JSON.stringify(t.htmlContent).replace(/'/g, "&apos;")})'
+                                    class="px-4 py-2 bg-white/5 border border-white/10 rounded-xl text-xs font-bold text-slate-300 hover:bg-cyan-500/10 hover:text-cyan-400 transition-all flex items-center gap-2">
+                                    <i class="fas fa-code"></i> Copiar HTML
+                                </button>
+                                <button onclick='openTemplateEditor(${JSON.stringify(t).replace(/'/g, "&apos;")})'
+                                    class="px-4 py-2 bg-cyan-500/10 border border-cyan-500/20 rounded-xl text-xs font-bold text-cyan-400 hover:bg-cyan-500 hover:text-white transition-all">
+                                    Editar Modelo
+                                </button>
+                            </div>
                         </div>
                     </div>
                 `).join('') || '<div class="col-span-full p-12 text-center text-slate-500">Nenhum modelo cadastrado.</div>';
@@ -790,65 +799,214 @@
             } catch (err) { }
         }
 
-        async function openCampaignWizard() {
-            const templates = await (await fetch('/api/marketing/templates')).json();
-            const leads = await (await fetch('/api/marketing/leads')).json();
-            const tags = [...new Set(leads.flatMap(l => l.tags))];
+        let wizardState = { step: 1, data: {}, templates: [], leads: [], availableTags: [], selectedTags: [] };
 
+        async function openCampaignWizard() {
+            wizardState = { step: 1, data: { batchSize: 50, interval: 60 }, selectedTags: [] };
+            wizardState.templates = await (await fetch('/api/marketing/templates')).json();
+            wizardState.leads = await (await fetch('/api/marketing/leads')).json();
+            wizardState.availableTags = [...new Set(wizardState.leads.flatMap(l => l.tags))];
+            renderWizard();
+        }
+
+        function renderWizard() {
             const modal = document.getElementById('modalContent');
-            modal.innerHTML = `
-                            <div class="flex justify-between items-center mb-6">
-                                <h2 class="text-2xl font-bold text-white">Nova Campanha</h2>
-                                <button onclick="closeModal()" class="text-slate-400 hover:text-rose-400"><i class="fas fa-times text-xl"></i></button>
+            const step = wizardState.step;
+
+            let content = '';
+            if (step === 1) {
+                content = `
+                    <div class="flex justify-between items-center mb-6">
+                        <h2 class="text-xl font-bold text-white">Criar Campanha - Etapa 1 de 3</h2>
+                        <button onclick="closeModal()" class="text-slate-400 hover:text-rose-400 p-2"><i class="fas fa-times text-xl"></i></button>
+                    </div>
+                    <div class="space-y-6">
+                        <div>
+                            <label class="block text-sm font-bold text-slate-400 mb-2">Nome da Campanha</label>
+                            <input type="text" id="wiz-name" value="${wizardState.data.name || ''}" placeholder="Ex: Newsletter Q3" class="w-full bg-slate-900/50 border border-white/10 rounded-xl px-4 py-3 text-white outline-none focus:border-cyan-500">
+                        </div>
+                        <div>
+                            <label class="block text-sm font-bold text-slate-400 mb-2">Assunto do Email</label>
+                            <input type="text" id="wiz-subject" value="${wizardState.data.subject || ''}" placeholder="Grandes novidades..." class="w-full bg-slate-900/50 border border-white/10 rounded-xl px-4 py-3 text-white outline-none focus:border-cyan-500">
+                        </div>
+                        <div>
+                            <label class="block text-sm font-bold text-slate-400 mb-2">Modelo de Email</label>
+                            <select id="wiz-template" class="w-full bg-slate-900/50 border border-white/10 rounded-xl px-4 py-3 text-white outline-none focus:border-cyan-500">
+                                <option value="">Selecione um modelo</option>
+                                ${wizardState.templates.map(t => `<option value="${t.id}" ${wizardState.data.templateId == t.id ? 'selected' : ''}>${t.name}</option>`).join('')}
+                            </select>
+                        </div>
+                        <button onclick="nextWizStep()" class="w-full py-4 bg-cyan-600 text-white rounded-xl font-bold hover:bg-cyan-700 transition-all">Próximo</button>
+                    </div>
+                `;
+            } else if (step === 2) {
+                const leadCount = wizardState.selectedTags.length === 0 ? wizardState.leads.length : wizardState.leads.filter(l => l.tags.some(t => wizardState.selectedTags.includes(t))).length;
+
+                content = `
+                    <div class="flex justify-between items-center mb-6">
+                        <h2 class="text-xl font-bold text-white">Criar Campanha - Etapa 2 de 3</h2>
+                        <button onclick="closeModal()" class="text-slate-400 hover:text-rose-400 p-2"><i class="fas fa-times text-xl"></i></button>
+                    </div>
+                    <div class="space-y-6">
+                        <div>
+                            <label class="block text-sm font-bold text-slate-400 mb-2">Tags de Destino</label>
+                            <p class="text-[10px] text-slate-500 mb-3">Selecione as tags dos leads que receberão esta campanha. Deixe vazio para enviar a todos.</p>
+                            
+                            <div class="flex flex-wrap gap-2 mb-3">
+                                ${wizardState.selectedTags.map(t => `
+                                    <span class="flex items-center gap-2 px-3 py-1 bg-cyan-600 text-white rounded-lg text-xs font-bold">
+                                        ${t}
+                                        <button onclick="removeWizTag('${t}')" class="hover:text-cyan-200"><i class="fas fa-times"></i></button>
+                                    </span>
+                                `).join('')}
                             </div>
-                            <div class="space-y-6">
-                                <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-                                    <div>
-                                        <label class="block text-sm font-bold text-slate-400 mb-2">Nome da Campanha</label>
-                                        <input type="text" id="camp-name" placeholder="Ex: Promoção de Verão" class="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-white outline-none">
-                                    </div>
-                                    <div>
-                                        <label class="block text-sm font-bold text-slate-400 mb-2">Assunto Personalizado</label>
-                                        <input type="text" id="camp-subject" placeholder="Deixe em branco p/ usar o do modelo" class="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-white outline-none">
-                                    </div>
-                                    <div>
-                                        <label class="block text-sm font-bold text-slate-400 mb-2">Modelo de Email</label>
-                                        <select id="camp-template" class="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-white outline-none">
-                                            ${templates.map(t => `<option value="${t.id}" class="bg-slate-900">${t.name}</option>`).join('')}
-                                        </select>
-                                    </div>
-                                    <div>
-                                        <label class="block text-sm font-bold text-slate-400 mb-2">Público Alvo (Tags)</label>
-                                        <div id="camp-tags" class="flex flex-wrap gap-2 p-3 bg-white/5 border border-white/10 rounded-xl min-h-[50px]">
-                                            ${tags.map(t => `
-                                    <label class="flex items-center gap-2 px-3 py-1 bg-white/5 rounded-full cursor-pointer hover:bg-cyan-500/10 transition-all border border-transparent has-[:checked]:border-cyan-500 has-[:checked]:text-cyan-400">
-                                        <input type="checkbox" value="${t}" class="hidden">
-                                        <span class="text-xs font-bold">${t}</span>
-                                    </label>
-                                `).join('') || '<span class="text-xs text-slate-500">Nenhuma tag disponível</span>'}
-                                        </div>
-                                    </div>
+
+                            <div class="relative">
+                                <div class="absolute left-4 top-1/2 -translate-y-1/2 text-slate-500"><i class="fas fa-search"></i></div>
+                                <input type="text" id="wiz-tag-search" oninput="filterWizTags()" placeholder="Pesquisar tags..." class="w-full bg-slate-900/50 border border-white/10 rounded-xl pl-10 pr-4 py-3 text-white outline-none focus:border-cyan-500">
+                                <div id="wiz-tag-results" class="absolute top-full left-0 w-full mt-2 bg-slate-800 border border-white/10 rounded-xl overflow-hidden hidden z-50 shadow-2xl">
                                 </div>
-                                <button onclick="saveCampaign()" class="w-full py-4 bg-cyan-500 text-white rounded-xl font-bold hover:bg-cyan-600 transition-all">Criar Campanha</button>
                             </div>
-            `;
+                        </div>
+                        
+                        <p class="text-xs text-slate-400"><b class="text-cyan-400">${leadCount.toLocaleString()} lead(s)</b> serão incluídos nesta campanha</p>
+
+                        <div class="grid grid-cols-2 gap-4">
+                            <div>
+                                <label class="block text-[10px] font-bold text-slate-500 uppercase mb-2">Tamanho do Lote (emails por lote)</label>
+                                <input type="number" id="wiz-batch" value="${wizardState.data.batchSize}" class="w-full bg-slate-900/50 border border-white/10 rounded-xl px-4 py-3 text-white outline-none focus:border-cyan-500">
+                            </div>
+                            <div>
+                                <label class="block text-[10px] font-bold text-slate-500 uppercase mb-2">Intervalo (segundos entre lotes)</label>
+                                <input type="number" id="wiz-interval" value="${wizardState.data.interval}" class="w-full bg-slate-900/50 border border-white/10 rounded-xl px-4 py-3 text-white outline-none focus:border-cyan-500">
+                            </div>
+                        </div>
+
+                        <div class="flex gap-4">
+                            <button onclick="prevWizStep()" class="flex-1 py-4 bg-white/5 border border-white/20 text-white rounded-xl font-bold hover:bg-white/10 transition-all">Voltar</button>
+                            <button onclick="nextWizStep()" class="flex-1 py-4 bg-cyan-600 text-white rounded-xl font-bold hover:bg-cyan-700 transition-all">Revisar</button>
+                        </div>
+                    </div>
+                `;
+            } else if (step === 3) {
+                const template = wizardState.templates.find(t => t.id == wizardState.data.templateId);
+                const leadCount = wizardState.selectedTags.length === 0 ? wizardState.leads.length : wizardState.leads.filter(l => l.tags.some(t => wizardState.selectedTags.includes(t))).length;
+
+                content = `
+                    <div class="flex justify-between items-center mb-6">
+                        <h2 class="text-xl font-bold text-white">Criar Campanha - Etapa 3 de 3</h2>
+                        <button onclick="closeModal()" class="text-slate-400 hover:text-rose-400 p-2"><i class="fas fa-times text-xl"></i></button>
+                    </div>
+                    <div class="glass p-6 rounded-2xl bg-slate-900/50 space-y-4">
+                        <div class="flex flex-col gap-1">
+                            <span class="text-[10px] font-bold text-slate-500 uppercase">Nome</span>
+                            <span class="text-white font-bold">${wizardState.data.name}</span>
+                        </div>
+                        <div class="flex flex-col gap-1">
+                            <span class="text-[10px] font-bold text-slate-500 uppercase">Assunto</span>
+                            <span class="text-white font-bold">${wizardState.data.subject}</span>
+                        </div>
+                        <div class="flex flex-col gap-1">
+                            <span class="text-[10px] font-bold text-slate-500 uppercase">Modelo</span>
+                            <span class="text-white font-bold">${template ? template.name : 'N/A'}</span>
+                        </div>
+                        <div class="flex flex-col gap-1">
+                            <span class="text-[10px] font-bold text-slate-500 uppercase">Controle de envio</span>
+                            <span class="text-white font-bold">${wizardState.data.batchSize} emails a cada ${wizardState.data.interval}s</span>
+                        </div>
+                        <div class="flex flex-col gap-1">
+                            <span class="text-[10px] font-bold text-slate-500 uppercase">Tags de Destino</span>
+                            <div class="flex flex-wrap gap-1 mt-1">
+                                ${wizardState.selectedTags.length > 0 ? wizardState.selectedTags.map(t => `<span class="px-2 py-0.5 bg-cyan-600 text-white rounded text-[10px] font-bold">${t}</span>`).join('') : '<span class="text-white text-xs">Todos os leads</span>'}
+                            </div>
+                        </div>
+                        <div class="pt-4 border-t border-white/10 mt-4 flex justify-between items-end">
+                            <div>
+                                <span class="text-[10px] font-bold text-slate-500 uppercase">Total de Leads</span>
+                                <p class="text-lg text-white font-bold">${leadCount.toLocaleString()} <span class="text-xs text-slate-500 font-normal">destinatários</span></p>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="flex gap-4 mt-6">
+                        <button onclick="prevWizStep()" class="flex-1 py-4 bg-white/5 border border-white/20 text-white rounded-xl font-bold hover:bg-white/10 transition-all">Voltar</button>
+                        <button onclick="saveCampaign()" class="flex-1 py-4 bg-cyan-600 text-white rounded-xl font-bold hover:bg-cyan-700 transition-all shadow-lg shadow-cyan-600/20">Criar Campanha</button>
+                    </div>
+                `;
+            }
+
+            modal.innerHTML = content;
             document.getElementById('modalOverlay').classList.remove('hidden');
             document.getElementById('modalOverlay').classList.add('flex');
         }
 
-        async function saveCampaign() {
-            const selectedTags = Array.from(document.querySelectorAll('#camp-tags input:checked')).map(i => i.value);
-            const templateId = document.getElementById('camp-template').value;
-            const templates = await (await fetch('/api/marketing/templates')).json();
-            const template = templates.find(t => t.id == templateId);
+        function filterWizTags() {
+            const query = document.getElementById('wiz-tag-search').value.toLowerCase();
+            const resultsDiv = document.getElementById('wiz-tag-results');
 
+            if (!query) {
+                resultsDiv.classList.add('hidden');
+                return;
+            }
+
+            const matches = wizardState.availableTags.filter(t => t.toLowerCase().includes(query) && !wizardState.selectedTags.includes(t));
+
+            if (matches.length === 0) {
+                resultsDiv.innerHTML = '<div class="p-4 text-slate-500 text-xs">Nenhuma tag encontrada</div>';
+            } else {
+                resultsDiv.innerHTML = matches.map(t => `
+                    <button onclick="addWizTag('${t}')" class="w-full text-left p-3 text-sm text-white hover:bg-cyan-600 transition-all flex justify-between items-center group">
+                        ${t}
+                        <i class="fas fa-plus text-cyan-500 group-hover:text-white"></i>
+                    </button>
+                `).join('');
+            }
+            resultsDiv.classList.remove('hidden');
+        }
+
+        function addWizTag(tag) {
+            wizardState.selectedTags.push(tag);
+            document.getElementById('wiz-tag-search').value = '';
+            document.getElementById('wiz-tag-results').classList.add('hidden');
+            renderWizard();
+        }
+
+        function removeWizTag(tag) {
+            wizardState.selectedTags = wizardState.selectedTags.filter(t => t !== tag);
+            renderWizard();
+        }
+
+        function nextWizStep() {
+            if (wizardState.step === 1) {
+                wizardState.data.name = document.getElementById('wiz-name').value;
+                wizardState.data.subject = document.getElementById('wiz-subject').value;
+                wizardState.data.templateId = document.getElementById('wiz-template').value;
+                if (!wizardState.data.name || !wizardState.data.templateId) return showToast('Nome e Modelo são obrigatórios', 'error');
+            } else if (wizardState.step === 2) {
+                wizardState.data.batchSize = parseInt(document.getElementById('wiz-batch').value) || 50;
+                wizardState.data.interval = parseInt(document.getElementById('wiz-interval').value) || 60;
+            }
+            wizardState.step++;
+            renderWizard();
+        }
+
+        function prevWizStep() {
+            wizardState.step--;
+            renderWizard();
+        }
+
+        async function saveCampaign() {
             const data = {
-                name: document.getElementById('camp-name').value,
-                templateId: templateId,
-                subject: document.getElementById('camp-subject').value || (template ? template.subject : ''),
-                targetTags: selectedTags,
-                status: 'draft'
+                name: wizardState.data.name,
+                templateId: wizardState.data.templateId,
+                subject: wizardState.data.subject,
+                targetTags: wizardState.selectedTags,
+                status: 'draft',
+                batchSize: wizardState.data.batchSize,
+                interval: wizardState.data.interval
             };
+
+            showToast('Criando campanha...', 'info');
             await fetch('/api/marketing/campaigns', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
