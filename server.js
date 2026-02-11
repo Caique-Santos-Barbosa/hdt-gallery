@@ -218,7 +218,7 @@ app.post('/api/marketing/campaigns/:id/stop', (req, res) => {
 });
 
 // App Start
-app.get('/*', (req, res) => {
+app.get('(.*)', (req, res) => {
   res.sendFile(path.join(__dirname, 'public', 'index.html'));
 });
 
