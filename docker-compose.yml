@@ -1,0 +1,13 @@
+version: '3.8'
+
+services:
+  hdt-gallery:
+    build: .
+    ports:
+      - "3000:3000"
+    volumes:
+      - uploads_data:/app/uploads
+    restart: always
+
+volumes:
+  uploads_data:
