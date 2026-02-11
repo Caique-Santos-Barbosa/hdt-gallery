@@ -81,7 +81,7 @@
         <!-- Upload Section -->
         <div class="glass rounded-3xl p-8 mb-12 shadow-2xl">
             <div id="dropZone" class="drop-zone rounded-2xl p-12 text-center cursor-pointer">
-                <input type="file" id="fileInput" class="hidden" accept="image/*">
+                <input type="file" id="fileInput" class="opacity-0 absolute pointer-events-none" accept="image/*">
                 <div class="mb-4">
                     <i class="fas fa-cloud-upload-alt text-5xl text-cyan-400"></i>
                 </div>
@@ -127,7 +127,10 @@
         const toastMsg = document.getElementById('toastMsg');
 
         // Drag & Drop Handlers
-        dropZone.addEventListener('click', () => fileInput.click());
+        dropZone.addEventListener('click', () => {
+            console.log('Dropzone clicked');
+            fileInput.click();
+        });
 
         dropZone.addEventListener('dragover', (e) => {
             e.preventDefault();
@@ -142,6 +145,7 @@
             e.preventDefault();
             dropZone.classList.remove('active');
             const files = e.dataTransfer.files;
+            console.log('File dropped:', files.length);
             if (files.length > 0) handleUpload(files[0]);
         });
 
@@ -206,9 +210,31 @@
         }
 
         function copyLink(url) {
-            navigator.clipboard.writeText(url).then(() => {
-                showToast('Link copied for email!');
-            });
+            if (navigator.clipboard && navigator.clipboard.writeText) {
+                navigator.clipboard.writeText(url).then(() => {
+                    showToast('Link copied for email!');
+                }).catch(err => {
+                    fallbackCopyTextToClipboard(url);
+                });
+            } else {
+                fallbackCopyTextToClipboard(url);
+            }
+        }
+
+        function fallbackCopyTextToClipboard(text) {
+            const textArea = document.createElement("textarea");
+            textArea.value = text;
+            document.body.appendChild(textArea);
+            textArea.focus();
+            textArea.select();
+            try {
+                document.execCommand('copy');
+                showToast('Link copied (fallback)!');
+            } catch (err) {
+                console.error('Fallback copy failed', err);
+                showToast('Copy failed', 'error');
+            }
+            document.body.removeChild(textArea);
         }
 
         async function deleteImage(filename) {
