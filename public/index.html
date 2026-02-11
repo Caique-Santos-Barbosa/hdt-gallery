@@ -186,25 +186,36 @@
                 </button>
             </nav>
 
-            <div class="mt-auto p-4 border-t border-white/5">
-                <div class="flex items-center gap-3 mb-4 px-2">
-                    <div class="flex items-center gap-3 p-4 mb-2 cursor-pointer hover:bg-white/5 rounded-2xl transition-all"
-                        onclick="openProfileModal()">
-                        <div class="w-10 h-10 rounded-full bg-slate-800 flex items-center justify-center text-cyan-400 border border-white/10"
+            <div class="mt-auto p-4 border-t border-white/5 relative">
+                <!-- User Profile & Dropdown -->
+                <div class="relative group">
+                    <button onclick="toggleUserDropdown(event)"
+                        class="w-full flex items-center gap-3 p-3 mb-2 rounded-2xl transition-all hover:bg-white/5 border border-transparent hover:border-white/10 group">
+                        <div class="w-10 h-10 rounded-full bg-slate-800 flex items-center justify-center text-cyan-400 border border-white/10 overflow-hidden shrink-0"
                             id="userAvatar">
                             <i class="fas fa-user"></i>
                         </div>
-                        <div>
-                            <p class="text-sm font-bold text-white line-clamp-1" id="userNameDisplay">Usuário</p>
-                            <p class="text-[10px] text-slate-500 uppercase font-bold tracking-wider"
-                                id="userRoleDisplay">
-                                Papel</p>
+                        <div class="flex-1 text-left min-w-0">
+                            <p class="text-sm font-bold text-white truncate" id="userNameDisplay">Usuário</p>
+                            <p class="text-[10px] text-slate-500 uppercase font-bold tracking-wider truncate"
+                                id="userRoleDisplay">Papel</p>
                         </div>
-                    </div>
-                    <button onclick="handleLogout()"
-                        class="w-full flex items-center gap-3 px-4 py-2 rounded-lg text-rose-400 hover:bg-rose-500/10 transition-all text-xs font-bold">
-                        <i class="fas fa-sign-out-alt"></i> Sair do Sistema
+                        <i
+                            class="fas fa-chevron-up text-[10px] text-slate-500 group-hover:text-cyan-400 transition-colors"></i>
                     </button>
+
+                    <!-- User Dropdown Menu -->
+                    <div id="userDropdown"
+                        class="hidden absolute bottom-full left-4 right-4 mb-2 bg-[#0f172a] border border-white/10 rounded-2xl shadow-2xl overflow-hidden z-[60] backdrop-blur-xl animate-in fade-in slide-in-from-bottom-2 duration-200">
+                        <button onclick="openProfileModal(); toggleUserDropdown(event)"
+                            class="w-full flex items-center gap-3 px-4 py-3 text-sm text-slate-300 hover:bg-white/5 hover:text-white transition-all border-b border-white/5">
+                            <i class="fas fa-user-circle text-cyan-400"></i> Meu Perfil
+                        </button>
+                        <button onclick="handleLogout()"
+                            class="w-full flex items-center gap-3 px-4 py-3 text-sm text-rose-400 hover:bg-rose-500/10 transition-all">
+                            <i class="fas fa-sign-out-alt"></i> Sair do Sistema
+                        </button>
+                    </div>
                 </div>
 
                 <div class="p-6">
@@ -639,9 +650,17 @@
         function updateUserDisplay() {
             const nameEl = document.getElementById('userNameDisplay');
             const roleEl = document.getElementById('userRoleDisplay');
+            const avatarEl = document.getElementById('userAvatar');
             if (currentUser && nameEl && roleEl) {
                 nameEl.innerText = currentUser.name;
                 roleEl.innerText = currentUser.role === 'admin' ? 'Administrador' : 'Usuário';
+                if (avatarEl) {
+                    if (currentUser.avatar) {
+                        avatarEl.innerHTML = `<img src="${currentUser.avatar}" class="w-full h-full object-cover">`;
+                    } else {
+                        avatarEl.innerHTML = `<i class="fas fa-user"></i>`;
+                    }
+                }
             }
         }
 
@@ -2261,27 +2280,43 @@
                         <p class="text-sm text-slate-500">Atualize suas informações de conta.</p>
                     </div>
                     <div class="space-y-4">
-                        <div class="flex items-center gap-4 p-4 bg-white/5 rounded-2xl border border-white/10">
-                            <div class="w-16 h-16 rounded-full bg-slate-800 flex items-center justify-center text-cyan-400 border border-white/10 overflow-hidden">
-                                ${currentUser.avatar ? `<img src="${currentUser.avatar}" class="w-full h-full object-cover">` : '<i class="fas fa-user text-2xl"></i>'}
+                        <div class="flex items-center gap-6 p-6 bg-white/5 rounded-3xl border border-white/10">
+                            <div class="relative group/avatar">
+                                <div class="w-24 h-24 rounded-full bg-slate-800 flex items-center justify-center text-cyan-400 border-2 border-white/10 overflow-hidden shrink-0 shadow-2xl">
+                                    <img id="prof-preview" src="${currentUser.avatar || 'https://via.placeholder.com/150'}" class="w-full h-full object-cover ${!currentUser.avatar ? 'opacity-20' : ''}">
+                                    ${!currentUser.avatar ? '<i class="fas fa-user text-3xl absolute"></i>' : ''}
+                                </div>
+                                <button onclick="triggerAvatarUpload()" 
+                                    class="absolute inset-0 bg-black/60 opacity-0 group-hover/avatar:opacity-100 flex items-center justify-center rounded-full transition-all text-white text-xs font-bold">
+                                    <i class="fas fa-camera mr-2"></i> Alterar
+                                </button>
+                                <input type="file" id="prof-upload-input" class="hidden" accept="image/*" onchange="handleAvatarUpload(event)">
                             </div>
                             <div class="flex-1">
-                                <label class="block text-[10px] font-bold text-slate-500 uppercase mb-1">Link da Foto (Avatar)</label>
-                                <input type="text" id="prof-avatar" value="${currentUser.avatar || ''}" class="w-full bg-slate-900/50 border border-white/10 rounded-lg px-3 py-2 text-xs text-white outline-none focus:border-cyan-500">
+                                <label class="block text-[10px] font-bold text-slate-500 uppercase mb-2 tracking-widest">Avatar do Usuário</label>
+                                <div class="flex gap-2">
+                                    <input type="text" id="prof-avatar" value="${currentUser.avatar || ''}" 
+                                        placeholder="URL da imagem ou faça upload..."
+                                        class="flex-1 bg-slate-900/50 border border-white/10 rounded-xl px-4 py-3 text-sm text-white outline-none focus:border-cyan-500 transition-all font-mono">
+                                    <button onclick="triggerAvatarUpload()" class="px-4 bg-white/5 hover:bg-white/10 text-cyan-400 rounded-xl border border-cyan-500/20 transition-all" title="Fazer Upload">
+                                        <i class="fas fa-upload"></i>
+                                    </button>
+                                </div>
+                                <p class="text-[9px] text-slate-500 mt-2 italic">A imagem será salva automaticamente no HDT Gallery.</p>
                             </div>
                         </div>
                         <div>
-                            <label class="block text-[10px] font-bold text-slate-500 uppercase mb-2">Nome Completo</label>
+                            <label class="block text-[10px] font-bold text-slate-500 uppercase mb-2 tracking-widest">Nome Completo</label>
                             <input type="text" id="prof-name" value="${currentUser.name}" class="w-full bg-slate-900 border border-white/10 rounded-xl px-4 py-3 text-white outline-none focus:border-cyan-500 transition-all">
                         </div>
                         <div>
-                            <label class="block text-[10px] font-bold text-slate-500 uppercase mb-2">Nova Senha</label>
+                            <label class="block text-[10px] font-bold text-slate-500 uppercase mb-2 tracking-widest">Nova Senha</label>
                             <input type="password" id="prof-pass" placeholder="Deixe em branco para manter" class="w-full bg-slate-900 border border-white/10 rounded-xl px-4 py-3 text-white outline-none focus:border-cyan-500 transition-all">
                         </div>
                     </div>
-                    <div class="flex gap-3">
-                        <button onclick="closeModal()" class="flex-1 py-3 bg-white/5 text-white rounded-xl font-bold hover:bg-white/10 transition-all">Cancelar</button>
-                        <button onclick="updateProfile()" class="flex-1 py-3 bg-cyan-600 text-white rounded-xl font-bold hover:bg-cyan-700 transition-all shadow-lg shadow-cyan-600/20">Salvar Alterações</button>
+                    <div class="flex gap-3 pt-4">
+                        <button onclick="closeModal()" class="flex-1 py-4 bg-white/5 text-white rounded-2xl font-bold hover:bg-white/10 transition-all">Cancelar</button>
+                        <button onclick="updateProfile()" class="flex-1 py-4 bg-cyan-600 text-white rounded-2xl font-bold hover:bg-cyan-700 transition-all shadow-xl shadow-cyan-600/30">Salvar Alterações</button>
                     </div>
                 </div>
             `;
@@ -2308,7 +2343,42 @@
                 checkAuth();
                 showToast('Perfil atualizado!');
                 closeModal();
+                loadImages(); // Update gallery
             } catch (err) { showToast('Erro ao atualizar', 'error'); }
+        }
+
+        function triggerAvatarUpload() {
+            document.getElementById('prof-upload-input').click();
+        }
+
+        async function handleAvatarUpload(e) {
+            const file = e.target.files[0];
+            if (!file) return;
+
+            const formData = new FormData();
+            formData.append('image', file);
+            showToast('Enviando para HDT Gallery...', 'info');
+
+            try {
+                const res = await fetch('/api/upload', { method: 'POST', body: formData });
+                const result = await res.json();
+                if (result.success) {
+                    showToast('Upload concluído!');
+                    const url = result.url;
+                    document.getElementById('prof-avatar').value = url;
+                    document.getElementById('prof-preview').src = url;
+                    document.getElementById('prof-preview').classList.remove('opacity-20');
+                    // Remove potential placeholder icon
+                    const icon = document.querySelector('.relative.group\\/avatar i.fa-user');
+                    if (icon) icon.remove();
+                }
+            } catch (err) { showToast('Erro no upload', 'error'); }
+        }
+
+        function toggleUserDropdown(e) {
+            if (e) e.stopPropagation();
+            const dropdown = document.getElementById('userDropdown');
+            dropdown.classList.toggle('hidden');
         }
 
         function copyToClipboard(text) {
@@ -2327,6 +2397,16 @@
                 loadStats();
                 loadCampaigns();
             }
+
+            // Close dropdowns on click outside
+            window.addEventListener('click', (e) => {
+                const dropdown = document.getElementById('userDropdown');
+                if (dropdown && !dropdown.classList.contains('hidden')) {
+                    if (!e.target.closest('#userDropdown') && !e.target.closest('button[onclick*="toggleUserDropdown"]')) {
+                        dropdown.classList.add('hidden');
+                    }
+                }
+            });
         });
 
         // Drag & Drop for Gallery
