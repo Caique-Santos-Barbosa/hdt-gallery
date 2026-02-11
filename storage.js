@@ -51,12 +51,13 @@ const storage = {
     },
     async saveLead(lead) {
         const db = await getDb();
-        const index = db.leads.findIndex(l => l.email === lead.email);
+        const index = lead.id ? db.leads.findIndex(l => l.id === lead.id) : db.leads.findIndex(l => l.email === lead.email);
+
         if (index > -1) {
             db.leads[index] = { ...db.leads[index], ...lead };
         } else {
-            lead.id = Date.now() + Math.random().toString(36).substr(2, 9);
-            lead.importedAt = new Date();
+            if (!lead.id) lead.id = Date.now() + Math.random().toString(36).substr(2, 9);
+            lead.importedAt = lead.importedAt || new Date();
             db.leads.push(lead);
         }
         await saveDb(db);

@@ -125,6 +125,10 @@ app.delete('/api/marketing/leads/:id', async (req, res) => {
   await storage.deleteLead(req.params.id);
   res.json({ success: true });
 });
+app.put('/api/marketing/leads/:id', async (req, res) => {
+  const lead = { ...req.body, id: req.params.id };
+  res.json(await storage.saveLead(lead));
+});
 
 // Import Leads
 app.post('/api/marketing/leads/import', memoryUpload.single('file'), async (req, res) => {
