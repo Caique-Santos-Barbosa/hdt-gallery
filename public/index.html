@@ -203,17 +203,43 @@
 
             <!-- Leads Section -->
             <section id="section-leads" class="hidden space-y-8">
-                <div class="flex items-center justify-between">
+                <div class="flex flex-col md:flex-row items-start md:items-center justify-between gap-6">
                     <div>
                         <h2 class="text-3xl font-bold text-white">Gestão de Leads</h2>
-                        <p class="text-slate-400">Base de contatos unificada.</p>
+                        <p class="text-slate-400 font-medium">Filtre, organize e gerencie sua base de contatos.</p>
                     </div>
-                    <div class="flex gap-2">
+                    <div class="flex items-center gap-3 w-full md:w-auto">
+                        <!-- Tag Filter Search -->
+                        <div class="relative flex-1 md:w-64">
+                            <button onclick="toggleTagFilter()"
+                                class="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-sm text-slate-300 flex items-center justify-between hover:bg-white/10 transition-all">
+                                <span id="tag-filter-label">Todas as Tags</span>
+                                <i class="fas fa-chevron-down text-[10px] text-slate-500"></i>
+                            </button>
+                            <div id="tag-filter-dropdown"
+                                class="absolute top-full left-0 w-full mt-2 bg-slate-900 border border-white/10 rounded-2xl shadow-2xl overflow-hidden z-50 hidden">
+                                <div class="p-3 border-b border-white/5">
+                                    <input type="text" placeholder="Filtrar tags..."
+                                        class="w-full bg-white/5 border border-white/10 rounded-lg px-3 py-2 text-xs text-white outline-none focus:border-cyan-500"
+                                        oninput="searchTagsInFilter(this.value)">
+                                </div>
+                                <div id="tag-filter-list" class="max-h-60 overflow-y-auto p-2 space-y-1">
+                                    <!-- Tags will load here -->
+                                </div>
+                                <div class="p-3 bg-white/5 border-t border-white/5 flex gap-2">
+                                    <button onclick="clearTagFilters()"
+                                        class="flex-1 py-2 text-[10px] font-bold text-slate-400 hover:text-white transition-all uppercase">Limpar</button>
+                                    <button onclick="applyTagFilters()"
+                                        class="flex-1 py-2 bg-cyan-600 text-white rounded-lg text-[10px] font-bold uppercase hover:bg-cyan-700 transition-all">Aplicar</button>
+                                </div>
+                            </div>
+                        </div>
+
                         <input type="file" id="importInput" accept=".csv,.xlsx" class="hidden"
                             onchange="importLeads(this)">
                         <button onclick="document.getElementById('importInput').click()"
                             class="px-6 py-3 bg-cyan-500 text-white rounded-xl font-bold hover:bg-cyan-600 transition-all shadow-lg shadow-cyan-500/20 flex items-center gap-2">
-                            <i class="fas fa-file-import"></i> Importar CSV/XLSX
+                            <i class="fas fa-file-import"></i> Importar
                         </button>
                     </div>
                 </div>
@@ -236,6 +262,25 @@
                             <!-- Leads here -->
                         </tbody>
                     </table>
+
+                    <!-- Pagination Controls -->
+                    <div
+                        class="bg-white/5 px-6 py-4 flex flex-col md:flex-row items-center justify-between gap-4 border-t border-white/10">
+                        <div class="flex items-center gap-4">
+                            <span class="text-xs text-slate-500">Mostrar</span>
+                            <select id="leads-per-page" onchange="changeRowsPerPage(this.value)"
+                                class="bg-slate-900 border border-white/10 rounded-lg px-3 py-1 text-xs text-white outline-none focus:border-cyan-500 cursor-pointer">
+                                <option value="50">50</option>
+                                <option value="250">250</option>
+                                <option value="500">500</option>
+                                <option value="1000">1000</option>
+                            </select>
+                            <span class="text-xs text-slate-500" id="pagination-info">Mostrando 0 de 0 leads</span>
+                        </div>
+                        <div class="flex items-center gap-2" id="pagination-buttons">
+                            <!-- Page buttons -->
+                        </div>
+                    </div>
                 </div>
             </section>
 
@@ -411,6 +456,9 @@
                 if (t) t.classList.remove('active-tab', 'bg-white/5', 'text-cyan-400');
             });
 
+            // Close tag filter dropdown when switching tabs
+            document.getElementById('tag-filter-dropdown').classList.add('hidden');
+
             document.getElementById(`section-${tabId}`).classList.remove('hidden');
             const activeTab = document.getElementById(`tab-${tabId}`);
             if (activeTab) activeTab.classList.add('active-tab');
@@ -484,33 +532,187 @@
             } catch (err) { showToast('Falha ao deletar', 'error'); }
         }
 
-        // --- Leads ---
+        // --- Leads State ---
+        let allLeads = [];
+        let filteredLeads = [];
+        let currentPage = 1;
+        let rowsPerPage = 50;
+        let activeTagFilters = [];
+        let tagSearchQuery = '';
+
         async function loadLeads() {
             try {
                 const response = await fetch('/api/marketing/leads');
-                const leads = await response.json();
-                const table = document.getElementById('leadsTable');
-                table.innerHTML = leads.map(l => `
-                    <tr>
-                        <td class="px-6 py-4 text-white font-medium">${l.name || 'Sem nome'}</td>
-                        <td class="px-6 py-4 text-slate-400 text-xs">${l.email}</td>
-                        <td class="px-6 py-4 text-slate-400 text-xs">${l.telefone || '-'}</td>
-                        <td class="px-6 py-4 text-slate-400 text-xs">${l.empresa || '-'}</td>
-                        <td class="px-6 py-4 text-slate-400 text-xs">${l.cidade_uf || '-'}</td>
-                        <td class="px-6 py-4 text-slate-400 text-xs">${l.cpf_cnpj || '-'}</td>
-                        <td class="px-6 py-4">
-                            <div class="flex flex-wrap gap-1">
-                                ${l.tags.map(t => `<span class="px-2 py-0.5 bg-cyan-500/10 text-cyan-400 text-[10px] font-bold rounded-full">${t}</span>`).join('')}
-                            </div>
-                        </td>
-                        <td class="px-6 py-4 text-right">
-                            <button onclick="deleteLead('${l.id}')" class="text-slate-500 hover:text-rose-400 px-2 transition-all">
-                                <i class="fas fa-trash-alt"></i>
-                            </button>
-                        </td>
-                    </tr>
-                `).join('') || '<tr><td colspan="8" class="p-12 text-center text-slate-500">Nenhum lead cadastrado ainda.</td></tr>';
-            } catch (err) { console.error(err); }
+                allLeads = await response.json();
+                applyFilters();
+            } catch (err) { showToast('Erro ao carregar leads', 'error'); }
+        }
+
+        function toggleTagFilter() {
+            const dropdown = document.getElementById('tag-filter-dropdown');
+            dropdown.classList.toggle('hidden');
+            if (!dropdown.classList.contains('hidden')) {
+                renderTagFilterList();
+            }
+        }
+
+        function searchTagsInFilter(query) {
+            tagSearchQuery = query.toLowerCase();
+            renderTagFilterList();
+        }
+
+        function renderTagFilterList() {
+            const list = document.getElementById('tag-filter-list');
+            // Get all tags and their counts
+            const tagMap = {};
+            allLeads.forEach(l => {
+                (l.tags || []).forEach(tag => {
+                    tagMap[tag] = (tagMap[tag] || 0) + 1;
+                });
+            });
+
+            const tags = Object.keys(tagMap).map(name => ({
+                name,
+                count: tagMap[name]
+            })).sort((a, b) => b.count - a.count);
+
+            const filteredTags = tags.filter(t => t.name.toLowerCase().includes(tagSearchQuery));
+
+            if (filteredTags.length === 0) {
+                list.innerHTML = '<div class="p-4 text-center text-slate-500 text-xs">Nenhuma tag encontrada</div>';
+                return;
+            }
+
+            list.innerHTML = filteredTags.map(t => `
+                <label class="flex items-center justify-between p-2 hover:bg-white/5 rounded-lg cursor-pointer group transition-all">
+                    <div class="flex items-center gap-2">
+                        <input type="checkbox" value="${t.name}" ${activeTagFilters.includes(t.name) ? 'checked' : ''} onchange="toggleTagInFilter('${t.name}')" class="w-4 h-4 rounded border-white/10 bg-slate-800 text-cyan-500 focus:ring-offset-0 focus:ring-cyan-500">
+                        <span class="text-xs text-slate-300 group-hover:text-white">${t.name}</span>
+                    </div>
+                    <span class="text-[10px] font-bold text-slate-500 bg-white/5 px-2 py-0.5 rounded-full">${t.count}</span>
+                </label>
+            `).join('');
+        }
+
+        function toggleTagInFilter(tag) {
+            if (activeTagFilters.includes(tag)) {
+                activeTagFilters = activeTagFilters.filter(t => t !== tag);
+            } else {
+                activeTagFilters.push(tag);
+            }
+        }
+
+        function clearTagFilters() {
+            activeTagFilters = [];
+            // Re-render list to reflect cleared state if open
+            renderTagFilterList();
+        }
+
+        function applyTagFilters() {
+            document.getElementById('tag-filter-dropdown').classList.add('hidden');
+            const label = document.getElementById('tag-filter-label');
+            if (activeTagFilters.length === 0) {
+                label.innerText = 'Todas as Tags';
+            } else if (activeTagFilters.length === 1) {
+                label.innerText = activeTagFilters[0];
+            } else {
+                label.innerText = `${activeTagFilters.length} Tags Selecionadas`;
+            }
+            currentPage = 1;
+            applyFilters();
+        }
+
+        function applyFilters() {
+            if (activeTagFilters.length === 0) {
+                filteredLeads = [...allLeads];
+            } else {
+                filteredLeads = allLeads.filter(l => l.tags.some(t => activeTagFilters.includes(t)));
+            }
+            renderLeadsTable();
+        }
+
+        function renderLeadsTable() {
+            const table = document.getElementById('leadsTable');
+            const startIndex = (currentPage - 1) * rowsPerPage;
+            const endIndex = startIndex + rowsPerPage;
+            const pagedLeads = filteredLeads.slice(startIndex, endIndex);
+
+            table.innerHTML = pagedLeads.map(l => `
+                <tr>
+                    <td class="px-6 py-4 text-white font-medium">${l.name || 'Sem nome'}</td>
+                    <td class="px-6 py-4 text-slate-400 text-xs">${l.email}</td>
+                    <td class="px-6 py-4 text-slate-400 text-xs">${l.telefone || '-'}</td>
+                    <td class="px-6 py-4 text-slate-400 text-xs">${l.empresa || '-'}</td>
+                    <td class="px-6 py-4 text-slate-400 text-xs">${l.cidade_uf || '-'}</td>
+                    <td class="px-6 py-4 text-slate-400 text-xs">${l.cpf_cnpj || '-'}</td>
+                    <td class="px-6 py-4">
+                        <div class="flex flex-wrap gap-1">
+                            ${(l.tags || []).map(t => `<span class="px-2 py-0.5 bg-cyan-500/10 text-cyan-400 text-[10px] font-bold rounded-lg border border-cyan-500/20">${t}</span>`).join('')}
+                        </div>
+                    </td>
+                    <td class="px-6 py-4 text-right">
+                        <button onclick="deleteLead('${l.id}')" class="text-slate-500 hover:text-rose-400 px-2 transition-all">
+                            <i class="fas fa-trash-alt"></i>
+                        </button>
+                    </td>
+                </tr>
+            `).join('') || '<tr><td colspan="8" class="p-12 text-center text-slate-500">Nenhum lead encontrado com esses filtros.</td></tr>';
+
+            renderPagination();
+        }
+
+        function renderPagination() {
+            const totalPages = Math.ceil(filteredLeads.length / rowsPerPage);
+            const info = document.getElementById('pagination-info');
+            const startRange = filteredLeads.length === 0 ? 0 : (currentPage - 1) * rowsPerPage + 1;
+            const endRange = Math.min(currentPage * rowsPerPage, filteredLeads.length);
+
+            info.innerText = `Mostrando ${startRange} - ${endRange} de ${filteredLeads.length} leads`;
+
+            const buttons = document.getElementById('pagination-buttons');
+            let btnsHtml = '';
+
+            // Prev
+            btnsHtml += `
+                <button onclick="changePage(${currentPage - 1})" ${currentPage === 1 ? 'disabled' : ''} class="p-2 w-10 h-10 flex items-center justify-center rounded-xl bg-white/5 border border-white/10 text-slate-400 hover:text-white disabled:opacity-20 disabled:cursor-not-allowed transition-all">
+                    <i class="fas fa-chevron-left"></i>
+                </button>
+            `;
+
+            // Max visible pages logic
+            const maxVisible = 5;
+            let start = Math.max(1, currentPage - Math.floor(maxVisible / 2));
+            let end = Math.min(totalPages, start + maxVisible - 1);
+            if (end - start + 1 < maxVisible) start = Math.max(1, end - maxVisible + 1);
+
+            for (let i = start; i <= end; i++) {
+                btnsHtml += `
+                    <button onclick="changePage(${i})" class="w-10 h-10 rounded-xl font-bold text-xs transition-all ${i === currentPage ? 'bg-cyan-500 text-white shadow-lg shadow-cyan-500/20' : 'bg-white/5 border border-white/10 text-slate-400 hover:text-white'}">
+                        ${i}
+                    </button>
+                `;
+            }
+
+            // Next
+            btnsHtml += `
+                <button onclick="changePage(${currentPage + 1})" ${currentPage === totalPages || totalPages === 0 ? 'disabled' : ''} class="p-2 w-10 h-10 flex items-center justify-center rounded-xl bg-white/5 border border-white/10 text-slate-400 hover:text-white disabled:opacity-20 disabled:cursor-not-allowed transition-all">
+                    <i class="fas fa-chevron-right"></i>
+                </button>
+            `;
+
+            buttons.innerHTML = btnsHtml;
+        }
+
+        function changePage(page) {
+            currentPage = page;
+            renderLeadsTable();
+            document.getElementById('section-leads').scrollIntoView({ behavior: 'smooth' });
+        }
+
+        function changeRowsPerPage(count) {
+            rowsPerPage = parseInt(count);
+            currentPage = 1;
+            renderLeadsTable();
         }
 
         async function importLeads(input) {
