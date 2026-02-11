@@ -21,7 +21,25 @@ app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 // Ensure uploads directory exists
 fs.ensureDirSync(path.join(__dirname, 'uploads'));
 
-// Multer Setup
+// Auth Routes
+app.post('/api/auth/login', async (req, res) => {
+  const { email, password } = req.body;
+  const user = await storage.getUserByEmail(email);
+  if (user && user.password === password) {
+    const { password, ...userWithoutPassword } = user;
+    res.json({ success: true, user: userWithoutPassword });
+  } else {
+    res.status(401).json({ success: false, error: 'Credenciais inválidas' });
+  }
+});
+
+// Settings Protection (RBAC)
+app.get('/api/marketing/config', async (req, res) => {
+  // In a real app, we'd check the token/session here. 
+  // For this basic setup, we'll let the frontend handle the initial hide,
+  // but we can add a simple header check if needed.
+  res.json(await storage.getConfig());
+});
 const uploadStorage = multer.diskStorage({
   destination: (req, file, cb) => {
     cb(null, 'uploads/');
@@ -85,7 +103,6 @@ app.delete('/api/images/:filename', async (req, res) => {
 // --- MAIL MARKETING APIS ---
 
 // Config
-app.get('/api/marketing/config', async (req, res) => res.json(await storage.getConfig()));
 app.post('/api/marketing/config', async (req, res) => res.json(await storage.updateConfig(req.body)));
 
 app.post('/api/marketing/config/test', async (req, res) => {
@@ -205,48 +222,119 @@ app.delete('/api/marketing/campaigns/:id', async (req, res) => {
 
 app.get('/api/marketing/campaigns/:id/logs', async (req, res) => res.json(await storage.getLogs(req.params.id)));
 
-// --- CAMPAIGN WORKER ---
+// Forms (Lead Capture)
+app.get('/api/marketing/forms', async (req, res) => res.json(await storage.getForms()));
+app.post('/api/marketing/forms', async (req, res) => res.json(await storage.saveForm(req.body)));
+app.put('/api/marketing/forms/:id', async (req, res) => {
+  const form = { ...req.body, id: req.params.id };
+  res.json(await storage.saveForm(form));
+});
+app.delete('/api/marketing/forms/:id', async (req, res) => {
+  await storage.deleteForm(req.params.id);
+  res.json({ success: true });
+});
+
+// Public Form Submission
+app.post('/api/forms/:id/submit', async (req, res) => {
+  try {
+    const forms = await storage.getForms();
+    const form = forms.find(f => f.id === req.params.id);
+    if (!form) return res.status(404).json({ error: 'Form not found' });
+
+    const leadData = req.body;
+    // Automatic Tagging
+    if (form.autoTag) {
+      const existingTags = leadData.tags || [];
+      if (!existingTags.includes(form.autoTag)) {
+        leadData.tags = [...existingTags, form.autoTag];
+      }
+    }
+
+    await storage.saveLead(leadData);
+
+    // Update submission count
+    form.submissions = (form.submissions || 0) + 1;
+    await storage.saveForm(form);
+
+    res.json({ success: true });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// --- CAMPAIGN WORKER (Autonomous) ---
 
 const runningCampaigns = new Map();
 
-async function startCampaign(campaignId) {
-  if (runningCampaigns.has(campaignId)) return;
+async function processCampaigns() {
+  const allCampaigns = await storage.getCampaigns();
 
-  const db = await storage.getCampaigns();
-  const campaign = db.find(c => c.id === campaignId);
-  if (!campaign) return;
-
-  const config = await storage.getConfig();
-  const templates = await storage.getTemplates();
-  const template = templates.find(t => t.id === campaign.templateId);
-  if (!template) return;
-
-  const allLeads = await storage.getLeads();
-  const leads = allLeads.filter(l => {
-    if (!campaign.targetTags || campaign.targetTags.length === 0) return true;
-    return campaign.targetTags.some(t => l.tags.includes(t));
-  });
-
-  await storage.saveCampaign({ ...campaign, status: 'running', totalLeads: leads.length });
-
-  const transporter = nodemailer.createTransport({
-    host: config.smtpHost,
-    port: config.smtpPort,
-    secure: config.smtpSecure,
-    auth: {
-      user: config.senderEmail,
-      pass: config.smtpPassword
+  // 1. Check for scheduled campaigns that should start
+  const now = new Date();
+  for (const c of allCampaigns) {
+    if (c.status === 'scheduled' && c.scheduledAt && new Date(c.scheduledAt) <= now) {
+      await storage.saveCampaign({ ...c, status: 'running' });
     }
-  });
+  }
 
+  // 2. Process running campaigns
+  for (const c of allCampaigns) {
+    if (c.status === 'running' && !runningCampaigns.has(c.id)) {
+      runCampaignTask(c.id);
+    }
+  }
+}
+
+async function runCampaignTask(campaignId) {
+  if (runningCampaigns.has(campaignId)) return;
   runningCampaigns.set(campaignId, true);
 
-  (async () => {
-    for (const lead of leads) {
-      if (!runningCampaigns.has(campaignId)) break;
+  try {
+    const campaigns = await storage.getCampaigns();
+    const campaign = campaigns.find(c => c.id === campaignId);
+    if (!campaign || campaign.status !== 'running') return;
+
+    const config = await storage.getConfig();
+    const templates = await storage.getTemplates();
+    const template = templates.find(t => t.id === campaign.templateId);
+    if (!template) {
+      await storage.saveCampaign({ ...campaign, status: 'error', errorMsg: 'Template not found' });
+      return;
+    }
+
+    const allLeads = await storage.getLeads();
+    const targetLeads = allLeads.filter(l => {
+      if (!campaign.targetTags || campaign.targetTags.length === 0) return true;
+      return campaign.targetTags.some(t => (l.tags || []).includes(t));
+    });
+
+    // Update total leads if not set
+    if (campaign.totalLeads !== targetLeads.length) {
+      await storage.saveCampaign({ ...campaign, totalLeads: targetLeads.length });
+    }
+
+    const transporter = nodemailer.createTransport({
+      host: config.smtpHost,
+      port: config.smtpPort,
+      secure: config.smtpSecure,
+      auth: {
+        user: config.senderEmail,
+        pass: config.smtpPassword
+      }
+    });
+
+    // Find where we left off (basic resilience)
+    const logs = await storage.getLogs(campaignId);
+    const sentEmails = new Set(logs.map(l => l.email));
+
+    for (const lead of targetLeads) {
+      if (!runningCampaigns.has(campaignId)) break; // Stopped manually
+      if (sentEmails.has(lead.email)) continue; // Already sent
 
       let html = template.htmlContent.replace(/\{\{name\}\}/gi, lead.name || '');
       html = html.replace(/\{\{email\}\}/gi, lead.email);
+      html = html.replace(/\{\{company\}\}/gi, lead.empresa || '');
+      html = html.replace(/\{\{button_link\}\}/gi, campaign.buttonLink || '#');
 
       try {
         await transporter.sendMail({
@@ -260,22 +348,42 @@ async function startCampaign(campaignId) {
         await storage.addLog({ campaignId, leadId: lead.id, email: lead.email, status: 'failed', errorMsg: err.message });
       }
 
-      // Small delay between emails
-      await new Promise(r => setTimeout(r, 1000));
+      // Interval logic (Wait between emails)
+      const interval = (campaign.interval || 60) * 1000;
+      await new Promise(r => setTimeout(r, interval));
     }
 
-    await storage.saveCampaign({ id: campaignId, status: 'completed' });
+    // Refresh and check if all are sent
+    const updatedLogs = await storage.getLogs(campaignId);
+    if (updatedLogs.filter(l => l.status === 'sent').length >= targetLeads.length) {
+      await storage.saveCampaign({ id: campaignId, status: 'completed' });
+    }
+  } catch (err) {
+    console.error(`Error in campaign ${campaignId}:`, err);
+  } finally {
     runningCampaigns.delete(campaignId);
-  })();
+  }
 }
 
+// Start worker loop
+setInterval(processCampaigns, 10000); // Check every 10s
+
 app.post('/api/marketing/campaigns/:id/start', async (req, res) => {
-  startCampaign(req.params.id);
+  const campaigns = await storage.getCampaigns();
+  const c = campaigns.find(item => item.id === req.params.id);
+  if (c) {
+    await storage.saveCampaign({ ...c, status: 'running' });
+  }
   res.json({ success: true });
 });
 
-app.post('/api/marketing/campaigns/:id/stop', (req, res) => {
-  runningCampaigns.delete(req.params.id);
+app.post('/api/marketing/campaigns/:id/stop', async (req, res) => {
+  const campaigns = await storage.getCampaigns();
+  const c = campaigns.find(item => item.id === req.params.id);
+  if (c) {
+    await storage.saveCampaign({ ...c, status: 'paused' });
+    runningCampaigns.delete(req.params.id);
+  }
   res.json({ success: true });
 });
 

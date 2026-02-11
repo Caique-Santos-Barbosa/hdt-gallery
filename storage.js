@@ -16,13 +16,29 @@ const defaultDb = {
     leads: [],
     templates: [],
     campaigns: [],
-    logs: []
+    logs: [],
+    forms: [],
+    users: [
+        { id: '1', email: 'admin@hdt.com', password: 'admin', role: 'admin', name: 'Administrador' },
+        { id: '2', email: 'user@hdt.com', password: 'user', role: 'user', name: 'Usuário' }
+    ]
 };
 
 async function initDb() {
     await fs.ensureDir(path.join(__dirname, 'data'));
     if (!await fs.exists(DB_PATH)) {
         await fs.writeJson(DB_PATH, defaultDb, { spaces: 2 });
+    } else {
+        // Migration: ensure users array exists
+        const db = await getDb();
+        if (!db.users) {
+            db.users = defaultDb.users;
+            await saveDb(db);
+        }
+        if (!db.forms) {
+            db.forms = [];
+            await saveDb(db);
+        }
     }
 }
 
@@ -152,6 +168,37 @@ const storage = {
     async getLogs(campaignId) {
         const db = await getDb();
         return db.logs.filter(l => l.campaignId === campaignId);
+    },
+    async getUserByEmail(email) {
+        const db = await getDb();
+        return db.users.find(u => u.email === email);
+    },
+    async getForms() {
+        const db = await getDb();
+        return db.forms || [];
+    },
+    async saveForm(form) {
+        const db = await getDb();
+        if (form.id) {
+            const index = db.forms.findIndex(f => f.id === form.id);
+            if (index > -1) {
+                db.forms[index] = { ...db.forms[index], ...form };
+            } else {
+                db.forms.push(form);
+            }
+        } else {
+            form.id = Date.now() + Math.random().toString(36).substr(2, 9);
+            form.createdAt = new Date();
+            form.submissions = 0;
+            db.forms.push(form);
+        }
+        await saveDb(db);
+        return form;
+    },
+    async deleteForm(id) {
+        const db = await getDb();
+        db.forms = db.forms.filter(f => f.id !== id);
+        await saveDb(db);
     }
 };
 
