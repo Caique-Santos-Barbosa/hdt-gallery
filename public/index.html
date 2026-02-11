@@ -113,8 +113,8 @@
     <!-- Notification Toast -->
     <div id="toast"
         class="fixed bottom-8 right-8 glass px-6 py-4 rounded-2xl shadow-2xl transform translate-y-24 transition-transform duration-300 flex items-center gap-3 z-50">
-        <div id="toastIcon" class="bg-cyan-500/20 p-2 rounded-lg">
-            <i class="fas fa-check text-cyan-400"></i>
+        <div id="toastIconBg" class="bg-cyan-500/20 p-2 rounded-lg">
+            <i id="toastIcon" class="fas fa-check text-cyan-400"></i>
         </div>
         <p id="toastMsg" class="font-medium"></p>
     </div>
@@ -253,19 +253,26 @@
         }
 
         function showToast(msg, type = 'success') {
+            const toastMsg = document.getElementById('toastMsg');
+            const toastIconBg = document.getElementById('toastIconBg');
+            const toastIcon = document.getElementById('toastIcon');
+
             toastMsg.innerText = msg;
             toast.classList.remove('translate-y-24');
 
+            // Reset classes
+            toastIconBg.className = 'p-2 rounded-lg';
+            toastIcon.className = 'fas text-sm';
+
             if (type === 'error') {
-                toast.querySelector('.bg-cyan-500/20').classList.replace('bg-cyan-500/20', 'bg-rose-500/20');
-                toast.querySelector('.text-cyan-400').classList.replace('text-cyan-400', 'text-rose-400');
-                toast.querySelector('i').classList.replace('fa-check', 'fa-times');
+                toastIconBg.classList.add('bg-rose-500/20');
+                toastIcon.classList.add('fa-times', 'text-rose-400');
             } else if (type === 'info') {
-                toast.querySelector('i').className = 'fas fa-spinner fa-spin text-cyan-400';
+                toastIconBg.classList.add('bg-cyan-500/20');
+                toastIcon.classList.add('fa-spinner', 'fa-spin', 'text-cyan-400');
             } else {
-                toast.querySelector('.bg-rose-500/20')?.classList.replace('bg-rose-500/20', 'bg-cyan-500/20');
-                toast.querySelector('.text-rose-400')?.classList.replace('text-rose-400', 'text-cyan-400');
-                toast.querySelector('i').className = 'fas fa-check text-cyan-400';
+                toastIconBg.classList.add('bg-cyan-500/20');
+                toastIcon.classList.add('fa-check', 'text-cyan-400');
             }
 
             setTimeout(() => {
