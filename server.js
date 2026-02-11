@@ -29,7 +29,7 @@ const storage = multer.diskStorage({
   }
 });
 
-const upload = multer({ 
+const upload = multer({
   storage,
   limits: { fileSize: 10 * 1024 * 1024 }, // 10MB limit
   fileFilter: (req, file, cb) => {
@@ -48,12 +48,12 @@ app.post('/api/upload', upload.single('image'), (req, res) => {
   if (!req.file) {
     return res.status(400).json({ error: 'No file uploaded' });
   }
-  
+
   const protocol = req.get('x-forwarded-proto') || req.protocol;
   const host = req.get('host');
   const imageUrl = `${protocol}://${host}/uploads/${req.file.filename}`;
-  
-  res.json({ 
+
+  res.json({
     success: true,
     url: imageUrl,
     filename: req.file.filename,
@@ -65,14 +65,21 @@ app.post('/api/upload', upload.single('image'), (req, res) => {
 app.get('/api/images', async (req, res) => {
   try {
     const files = await fs.readdir('uploads');
-    const images = files.map(file => {
-      const protocol = req.get('x-forwarded-proto') || req.protocol;
-      const host = req.get('host');
-      return {
-        filename: file,
-        url: `${protocol}://${host}/uploads/${file}`
-      };
-    });
+    const allowedExtensions = ['.jpg', '.jpeg', '.png', '.gif', '.webp'];
+
+    const images = files
+      .filter(file => {
+        const ext = path.extname(file).toLowerCase();
+        return !file.startsWith('.') && allowedExtensions.includes(ext);
+      })
+      .map(file => {
+        const protocol = req.get('x-forwarded-proto') || req.protocol;
+        const host = req.get('host');
+        return {
+          filename: file,
+          url: `${protocol}://${host}/uploads/${file}`
+        };
+      });
     res.json(images.reverse()); // Newest first
   } catch (err) {
     res.status(500).json({ error: 'Could not list images' });
