@@ -689,13 +689,14 @@
         }
 
         async function testSmtp() {
+            const port = parseInt(document.getElementById('set-port').value);
             const data = {
                 senderEmail: document.getElementById('set-email').value,
                 senderName: document.getElementById('set-name').value,
                 smtpHost: document.getElementById('set-host').value,
-                smtpPort: parseInt(document.getElementById('set-port').value),
+                smtpPort: port,
                 smtpPassword: document.getElementById('set-pass').value,
-                smtpSecure: true
+                smtpSecure: port === 465
             };
 
             showToast('Testando conexão...', 'info');
@@ -889,13 +890,14 @@
         }
 
         async function saveConfig() {
+            const port = parseInt(document.getElementById('set-port').value);
             const data = {
                 senderEmail: document.getElementById('set-email').value,
                 senderName: document.getElementById('set-name').value,
                 smtpHost: document.getElementById('set-host').value,
-                smtpPort: parseInt(document.getElementById('set-port').value),
+                smtpPort: port,
                 smtpPassword: document.getElementById('set-pass').value,
-                smtpSecure: true
+                smtpSecure: port === 465
             };
             await fetch('/api/marketing/config', {
                 method: 'POST',
