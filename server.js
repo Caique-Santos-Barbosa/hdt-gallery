@@ -88,6 +88,26 @@ app.delete('/api/images/:filename', async (req, res) => {
 app.get('/api/marketing/config', async (req, res) => res.json(await storage.getConfig()));
 app.post('/api/marketing/config', async (req, res) => res.json(await storage.updateConfig(req.body)));
 
+app.post('/api/marketing/config/test', async (req, res) => {
+  const config = req.body;
+  const transporter = nodemailer.createTransport({
+    host: config.smtpHost,
+    port: config.smtpPort,
+    secure: config.smtpSecure,
+    auth: {
+      user: config.senderEmail,
+      pass: config.smtpPassword
+    }
+  });
+
+  try {
+    await transporter.verify();
+    res.json({ success: true });
+  } catch (err) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
 // Leads
 app.get('/api/marketing/leads', async (req, res) => res.json(await storage.getLeads()));
 app.post('/api/marketing/leads', async (req, res) => res.json(await storage.saveLead(req.body)));
@@ -114,6 +134,10 @@ app.post('/api/marketing/leads/import', memoryUpload.single('file'), async (req,
     const leads = rows.map(row => ({
       email: row.email || row.Email || row.EMAIL || row['Email'] || row['Endereço de e-mail'],
       name: row.name || row.Nome || row.Name || row.NOME || row.NOME_COMPLETO || row.PRIMEIRO_NOME || row.nome_completo,
+      telefone: row.telefone || row.Telefone || row.TEL || row.Phone || row.PHONE || row.Celular || row.celular || "",
+      empresa: row.empresa || row.Empresa || row.Company || row.COMPANY || row.Razão || row.razão || "",
+      cidade_uf: row.cidade_uf || row.Cidade_UF || row.Cidade || row.cidade || row.UF || row.uf || row.Cidade_Estado || "",
+      cpf_cnpj: row.cpf_cnpj || row.CPF_CNPJ || row.CPF || row.CNPJ || row.cpf || row.cnpj || row.Documento || "",
       tags: (row.tags || row.Tags || row.TAG || row.Tag || "").split(',').map(t => t.trim()).filter(Boolean),
       status: 'active'
     })).filter(l => l.email);
