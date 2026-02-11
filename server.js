@@ -112,9 +112,9 @@ app.post('/api/marketing/leads/import', memoryUpload.single('file'), async (req,
     }
 
     const leads = rows.map(row => ({
-      email: row.email || row.Email || row.EMAIL,
-      name: row.name || row.Nome || row.Name || row.NOME,
-      tags: (row.tags || row.Tags || "").split(',').map(t => t.trim()).filter(Boolean),
+      email: row.email || row.Email || row.EMAIL || row['Email'] || row['Endereço de e-mail'],
+      name: row.name || row.Nome || row.Name || row.NOME || row.NOME_COMPLETO || row.PRIMEIRO_NOME || row.nome_completo,
+      tags: (row.tags || row.Tags || row.TAG || row.Tag || "").split(',').map(t => t.trim()).filter(Boolean),
       status: 'active'
     })).filter(l => l.email);
 
@@ -128,6 +128,22 @@ app.post('/api/marketing/leads/import', memoryUpload.single('file'), async (req,
 // Templates
 app.get('/api/marketing/templates', async (req, res) => res.json(await storage.getTemplates()));
 app.post('/api/marketing/templates', async (req, res) => res.json(await storage.saveTemplate(req.body)));
+
+app.post('/api/marketing/templates/upload', memoryUpload.single('file'), async (req, res) => {
+  if (!req.file) return res.status(400).json({ error: 'No file' });
+  try {
+    const htmlContent = req.file.buffer.toString('utf8');
+    const name = req.file.originalname.replace('.html', '');
+    const template = await storage.saveTemplate({
+      name: name,
+      subject: name,
+      htmlContent: htmlContent
+    });
+    res.json(template);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
 app.delete('/api/marketing/templates/:id', async (req, res) => {
   await storage.deleteTemplate(req.params.id);
   res.json({ success: true });
