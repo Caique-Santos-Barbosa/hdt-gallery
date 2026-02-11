@@ -821,12 +821,15 @@
         let isVisualMode = true;
 
         function openTemplateEditor(template = null) {
+            resetModal(); // Standardize state first
             const modal = document.getElementById('modalContent');
             const overlay = document.getElementById('modalOverlay');
 
             modal.classList.add('modal-full');
             modal.classList.remove('p-8', 'max-w-4xl', 'max-h-[90vh]', 'rounded-3xl', 'overflow-y-auto');
             overlay.classList.add('p-0');
+            overlay.classList.add('flex');
+            overlay.classList.remove('hidden');
 
             const currentId = template ? template.id : '';
             const currentName = template ? template.name : 'Novo Modelo';
@@ -1269,15 +1272,31 @@
             setupVisualEditor();
         }
 
+        function resetModal(sizeClass = 'max-w-4xl') {
+            const modal = document.getElementById('modalContent');
+            const overlay = document.getElementById('modalOverlay');
+
+            // Remove previous size/layout classes
+            modal.classList.remove('modal-full', 'max-w-4xl', 'max-w-2xl', 'max-w-3xl', 'max-w-5xl');
+
+            // Add default/requested classes
+            modal.classList.add('p-8', 'max-h-[90vh]', 'rounded-3xl', 'overflow-y-auto', sizeClass);
+            overlay.classList.remove('p-0');
+            overlay.classList.add('flex');
+            overlay.classList.remove('hidden');
+        }
+
         function closeModal() {
             const modal = document.getElementById('modalContent');
             const overlay = document.getElementById('modalOverlay');
             modal.classList.remove('modal-full');
-            modal.classList.add('p-8', 'max-w-4xl', 'max-h-[90vh]', 'rounded-3xl', 'overflow-y-auto');
-            overlay.classList.remove('p-0');
             overlay.classList.add('hidden');
             overlay.classList.remove('flex');
             selectedEl = null;
+
+            // Optional: reset to default medium size for next open
+            modal.classList.remove('p-0');
+            modal.classList.add('p-8', 'max-w-4xl', 'max-h-[90vh]', 'rounded-3xl', 'overflow-y-auto');
         }
 
         async function saveTemplate(id = '') {
@@ -1405,6 +1424,7 @@
         }
 
         function renderWizard() {
+            resetModal('max-w-2xl');
             const modal = document.getElementById('modalContent');
             const step = wizardState.step;
 
