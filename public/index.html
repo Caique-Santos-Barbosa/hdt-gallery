@@ -1,270 +1,377 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en" class="dark">
 
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>HDT Gallery | Premium Image Host</title>
+    <title>HDT Conecte | Unified Marketing Platform</title>
     <script src="https://cdn.tailwindcss.com"></script>
-    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;700&display=swap" rel="stylesheet">
     <style>
-        @import url('https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;700&display=swap');
-
         body {
             font-family: 'Outfit', sans-serif;
-            background: radial-gradient(circle at top left, #1a1a2e, #16213e, #0f3460);
+            background: radial-gradient(circle at top left, #1a233a, #0a0f1e);
             min-height: 100vh;
             color: #e2e8f0;
         }
 
         .glass {
-            background: rgba(255, 255, 255, 0.05);
+            background: rgba(17, 24, 39, 0.7);
             backdrop-filter: blur(12px);
-            -webkit-backdrop-filter: blur(12px);
-            border: 1px solid rgba(255, 255, 255, 0.1);
+            border: 1px solid rgba(255, 255, 255, 0.08);
         }
 
-        .gradient-text {
-            background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
-            -webkit-background-clip: text;
-            -webkit-text-fill-color: transparent;
+        .glass-hover:hover {
+            border-color: rgba(6, 182, 212, 0.4);
+            transform: translateY(-2px);
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
         }
 
-        .drop-zone {
-            border: 2px dashed rgba(255, 255, 255, 0.2);
-            transition: all 0.3s ease;
+        .active-tab {
+            background: rgba(6, 182, 212, 0.15);
+            color: #22d3ee;
+            border-left: 3px solid #22d3ee;
         }
 
-        .drop-zone.active {
-            border-color: #4facfe;
-            background: rgba(79, 172, 254, 0.1);
-        }
-
-        .image-card:hover .overlay {
-            opacity: 1;
-        }
-
-        .custom-scrollbar::-webkit-scrollbar {
+        ::-webkit-scrollbar {
             width: 6px;
         }
 
-        .custom-scrollbar::-webkit-scrollbar-track {
-            background: rgba(0, 0, 0, 0.1);
+        ::-webkit-scrollbar-track {
+            background: rgba(15, 23, 42, 0.1);
         }
 
-        .custom-scrollbar::-webkit-scrollbar-thumb {
-            background: rgba(255, 255, 255, 0.1);
+        ::-webkit-scrollbar-thumb {
+            background: rgba(34, 211, 238, 0.2);
             border-radius: 10px;
         }
 
-        .custom-scrollbar::-webkit-scrollbar-thumb:hover {
-            background: rgba(255, 255, 255, 0.2);
+        ::-webkit-scrollbar-thumb:hover {
+            background: rgba(34, 211, 238, 0.4);
         }
     </style>
 </head>
 
-<body class="p-4 md:p-8">
-    <div class="max-w-6xl mx-auto">
-        <!-- Header -->
-        <header class="flex justify-between items-center mb-12">
-            <div>
-                <h1 class="text-4xl font-bold gradient-text tracking-tight">HDT Gallery</h1>
-                <p class="text-slate-400 mt-2">Direct image links for HTML emails & more</p>
-            </div>
-            <div class="hidden md:flex items-center space-gap-4">
-                <div class="px-4 py-2 glass rounded-full text-sm font-medium">
-                    <i class="fas fa-server mr-2 text-cyan-400"></i> Self-hosted
+<body class="overflow-x-hidden">
+
+    <div class="flex min-h-screen">
+        <!-- Sidebar -->
+        <aside class="w-64 glass border-r hidden lg:flex flex-col fixed h-full z-50">
+            <div class="p-6">
+                <div class="flex items-center gap-3">
+                    <div
+                        class="w-10 h-10 bg-cyan-500 rounded-xl flex items-center justify-center shadow-lg shadow-cyan-500/20">
+                        <i class="fas fa-bolt text-white text-xl"></i>
+                    </div>
+                    <div>
+                        <h1 class="text-xl font-bold tracking-tight text-white">HDT Conecte</h1>
+                        <p class="text-[10px] text-cyan-400 font-bold tracking-widest uppercase">Marketing Ecosystem</p>
+                    </div>
                 </div>
             </div>
-        </header>
 
-        <!-- Upload Section -->
-        <div class="glass rounded-3xl p-8 mb-12 shadow-2xl">
-            <div id="dropZone" class="drop-zone rounded-2xl p-12 text-center cursor-pointer">
-                <input type="file" id="fileInput" class="opacity-0 absolute pointer-events-none" accept="image/*">
-                <div class="mb-4">
-                    <i class="fas fa-cloud-upload-alt text-5xl text-cyan-400"></i>
-                </div>
-                <h3 class="text-xl font-semibold mb-2">Drag & Drop Images</h3>
-                <p class="text-slate-400">or click to browse from your computer</p>
-                <p class="text-xs text-slate-500 mt-4">Supports PNG, JPG, GIF, WebP (Max 10MB)</p>
-            </div>
-        </div>
-
-        <!-- Gallery Section -->
-        <div>
-            <div class="flex items-center justify-between mb-6">
-                <h2 class="text-2xl font-semibold">Your Library</h2>
-                <button onclick="loadImages()" class="text-slate-400 hover:text-white transition-colors">
-                    <i class="fas fa-sync-alt mr-2"></i> Refresh
+            <nav class="flex-1 px-4 py-4 space-y-1">
+                <button onclick="switchTab('dashboard')" id="tab-dashboard"
+                    class="w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all active-tab">
+                    <i class="fas fa-chart-line w-5"></i> Dashboard
                 </button>
+                <button onclick="switchTab('gallery')" id="tab-gallery"
+                    class="w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all text-slate-400 hover:bg-white/5">
+                    <i class="fas fa-images w-5"></i> HDT Gallery
+                </button>
+                <div class="pt-4 pb-2 px-4 text-[10px] font-bold text-slate-500 uppercase tracking-widest">Mail
+                    Marketing</div>
+                <button onclick="switchTab('leads')" id="tab-leads"
+                    class="w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all text-slate-400 hover:bg-white/5">
+                    <i class="fas fa-users w-5"></i> Leads
+                </button>
+                <button onclick="switchTab('templates')" id="tab-templates"
+                    class="w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all text-slate-400 hover:bg-white/5">
+                    <i class="fas fa-envelope-open-text w-5"></i> Modelos
+                </button>
+                <button onclick="switchTab('campaigns')" id="tab-campaigns"
+                    class="w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all text-slate-400 hover:bg-white/5">
+                    <i class="fas fa-bullhorn w-5"></i> Campanhas
+                </button>
+                <div class="pt-4 pb-2 px-4 text-[10px] font-bold text-slate-500 uppercase tracking-widest">System</div>
+                <button onclick="switchTab('settings')" id="tab-settings"
+                    class="w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all text-slate-400 hover:bg-white/5">
+                    <i class="fas fa-cog w-5"></i> Configurações
+                </button>
+            </nav>
+
+            <div class="p-6">
+                <div
+                    class="p-4 rounded-2xl bg-gradient-to-br from-cyan-500/10 to-blue-500/10 border border-cyan-500/20">
+                    <p class="text-xs font-semibold text-white">Self-hosted Node.js</p>
+                    <p class="text-[10px] text-slate-400 mt-1">v2.0 Beta - Optimized</p>
+                </div>
             </div>
+        </aside>
 
-            <div id="imageGrid" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-                <!-- Skeleton Loader -->
-                <div class="glass animate-pulse rounded-2xl h-64"></div>
-                <div class="glass animate-pulse rounded-2xl h-64"></div>
-                <div class="glass animate-pulse rounded-2xl h-64"></div>
-                <div class="glass animate-pulse rounded-2xl h-64"></div>
-            </div>
-        </div>
-    </div>
+        <!-- Main Content -->
+        <main class="flex-1 lg:ml-64 p-4 lg:p-8">
 
-    <!-- Notification Toast -->
-    <div id="toast"
-        class="fixed bottom-8 right-8 glass px-6 py-4 rounded-2xl shadow-2xl transform translate-y-24 transition-transform duration-300 flex items-center gap-3 z-50">
-        <div id="toastIconBg" class="bg-cyan-500/20 p-2 rounded-lg">
-            <i id="toastIcon" class="fas fa-check text-cyan-400"></i>
-        </div>
-        <p id="toastMsg" class="font-medium"></p>
-    </div>
+            <!-- Dashboard Section -->
+            <section id="section-dashboard" class="space-y-8">
+                <div class="flex flex-col md:flex-row md:items-center justify-between gap-4">
+                    <div>
+                        <h2 class="text-3xl font-bold text-white">Dashboard</h2>
+                        <p class="text-slate-400">Bem-vindo ao centro de comando da HDT ENERGY.</p>
+                    </div>
+                </div>
 
-    <script>
-        const dropZone = document.getElementById('dropZone');
-        const fileInput = document.getElementById('fileInput');
-        const imageGrid = document.getElementById('imageGrid');
-        const toast = document.getElementById('toast');
-        const toastMsg = document.getElementById('toastMsg');
+                <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+                    <div class="glass p-6 rounded-3xl">
+                        <div class="flex items-center justify-between mb-4">
+                            <div
+                                class="w-12 h-12 bg-blue-500/20 rounded-2xl flex items-center justify-center text-blue-400">
+                                <i class="fas fa-users text-xl"></i>
+                            </div>
+                        </div>
+                        <p class="text-slate-400 text-sm">Total Leads</p>
+                        <h3 id="stat-leads" class="text-3xl font-bold text-white mt-1">0</h3>
+                    </div>
+                    <div class="glass p-6 rounded-3xl">
+                        <div class="flex items-center justify-between mb-4">
+                            <div
+                                class="w-12 h-12 bg-cyan-500/20 rounded-2xl flex items-center justify-center text-cyan-400">
+                                <i class="fas fa-paper-plane text-xl"></i>
+                            </div>
+                        </div>
+                        <p class="text-slate-400 text-sm">Emails Enviados</p>
+                        <h3 id="stat-sent" class="text-3xl font-bold text-white mt-1">0</h3>
+                    </div>
+                    <div class="glass p-6 rounded-3xl">
+                        <div class="flex items-center justify-between mb-4">
+                            <div
+                                class="w-12 h-12 bg-purple-500/20 rounded-2xl flex items-center justify-center text-purple-400">
+                                <i class="fas fa-file-image text-xl"></i>
+                            </div>
+                        </div>
+                        <p class="text-slate-400 text-sm">Imagens na Galeria</p>
+                        <h3 id="stat-images" class="text-3xl font-bold text-white mt-1">0</h3>
+                    </div>
+                    <div class="glass p-6 rounded-3xl">
+                        <div class="flex items-center justify-between mb-4">
+                            <div
+                                class="w-12 h-12 bg-amber-500/20 rounded-2xl flex items-center justify-center text-amber-400">
+                                <i class="fas fa-clock text-xl"></i>
+                            </div>
+                        </div>
+                        <p class="text-slate-400 text-sm">Campanhas Ativas</p>
+                        <h3 id="stat-active-camp" class="text-3xl font-bold text-white mt-1">0</h3>
+                    </div>
+                </div>
+            </section>
 
-        // Drag & Drop Handlers
-        dropZone.addEventListener('click', () => {
-            console.log('Dropzone clicked');
-            fileInput.click();
-        });
+            <!-- Gallery Section -->
+            <section id="section-gallery" class="hidden space-y-8">
+                <div class="flex items-center justify-between">
+                    <div>
+                        <h2 class="text-3xl font-bold text-white">HDT Gallery</h2>
+                        <p class="text-slate-400">Links diretos para e-mails HTML.</p>
+                    </div>
+                    <button onclick="loadImages()"
+                        class="p-3 glass rounded-xl text-slate-400 hover:text-cyan-400 hover:bg-cyan-500/10 transition-all">
+                        <i class="fas fa-sync-alt"></i>
+                    </button>
+                </div>
 
-        dropZone.addEventListener('dragover', (e) => {
-            e.preventDefault();
-            dropZone.classList.add('active');
-        });
+                <!-- Dropzone -->
+                <div id="dropzone"
+                    class="glass rounded-3xl border-dashed border-2 border-slate-700 p-12 text-center relative overflow-hidden group hover:border-cyan-500/50 transition-all duration-300">
+                    <input type="file" id="fileInput" accept="image/*"
+                        class="opacity-0 absolute inset-0 cursor-pointer z-10">
+                    <div class="flex flex-col items-center gap-4">
+                        <div
+                            class="w-20 h-20 bg-cyan-500/20 rounded-full flex items-center justify-center text-cyan-400 group-hover:scale-110 transition-transform">
+                            <i class="fas fa-cloud-upload-alt text-3xl"></i>
+                        </div>
+                        <div>
+                            <p class="text-xl font-semibold text-white">Arraste & Solte Imagens</p>
+                            <p class="text-slate-400 mt-1">PNG, JPG, GIF ou WebP (Máx 10MB)</p>
+                        </div>
+                    </div>
+                </div>
 
-        dropZone.addEventListener('dragleave', () => {
-            dropZone.classList.remove('active');
-        });
+                <div id="imageGrid" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+                    <!-- Images will load here -->
+                </div>
+            </section>
 
-        dropZone.addEventListener('drop', (e) => {
-            e.preventDefault();
-            dropZone.classList.remove('active');
-            const files = e.dataTransfer.files;
-            console.log('File dropped:', files.length);
-            if (files.length > 0) handleUpload(files[0]);
-        });
-
-        fileInput.addEventListener('change', (e) => {
-            if (e.target.files.length > 0) handleUpload(e.target.files[0]);
-        });
-
-        async function handleUpload(file) {
-            const formData = new FormData();
-            formData.append('image', file);
-
-            showToast('Uploading image...', 'info');
-
-            try {
-                const response = await fetch('/api/upload', {
-                    method: 'POST',
-                    body: formData
-                });
-                const result = await response.json();
-
-                if (result.success) {
-                    showToast('Upload successful!');
-                    await loadImages();
-                } else {
-                    showToast(result.error || 'Upload failed', 'error');
-                }
-            } catch (err) {
-                console.error('Upload error:', err);
-                showToast('Server error', 'error');
-            } finally {
-                fileInput.value = ''; // Reset to allow re-uploading the same file
-            }
-        }
-
-        async function loadImages() {
-            try {
-                const response = await fetch('/api/images');
-                const images = await response.json();
-                renderImages(images);
-            } catch (err) {
-                console.error('Error loading images:', err);
-                imageGrid.innerHTML = '<p class="text-red-400 col-span-full text-center">Failed to load images</p>';
-            }
-        }
-
-        function renderImages(images) {
-            if (images.length === 0) {
-                imageGrid.innerHTML = '<div class="col-span-full text-center py-12 glass rounded-2xl"><p class="text-slate-400">No images yet. Start uploading!</p></div>';
-                return;
-            }
-
-            imageGrid.innerHTML = images.map(img => `
-                <div class="image-card relative group glass rounded-2xl overflow-hidden aspect-square shadow-lg transition-all hover:scale-[1.02]">
-                    <img src="${img.url}" class="w-full h-full object-cover" alt="Uploaded image" loading="lazy">
-                    <div class="overlay opacity-0 group-hover:opacity-100 transition-opacity absolute inset-0 bg-black/60 flex flex-col items-center justify-center p-4 gap-4">
-                        <button onclick="copyLink('${img.url}')" class="w-full py-2 bg-cyan-600 hover:bg-cyan-500 rounded-lg font-medium transition-colors flex items-center justify-center gap-2">
-                            <i class="fas fa-link text-sm"></i> Copy Direct Link
-                        </button>
-                        <button onclick="deleteImage('${img.filename}')" class="w-full py-2 bg-rose-600/20 hover:bg-rose-600/40 text-rose-400 rounded-lg font-medium transition-colors flex items-center justify-center gap-2 border border-rose-500/20">
-                            <i class="fas fa-trash-alt text-sm"></i> Delete
+            <!-- Leads Section -->
+            <section id="section-leads" class="hidden space-y-8">
+                <div class="flex items-center justify-between">
+                    <div>
+                        <h2 class="text-3xl font-bold text-white">Gestão de Leads</h2>
+                        <p class="text-slate-400">Base de contatos unificada.</p>
+                    </div>
+                    <div class="flex gap-2">
+                        <input type="file" id="importInput" accept=".csv,.xlsx" class="hidden"
+                            onchange="importLeads(this)">
+                        <button onclick="document.getElementById('importInput').click()"
+                            class="px-6 py-3 bg-cyan-500 text-white rounded-xl font-bold hover:bg-cyan-600 transition-all shadow-lg shadow-cyan-500/20 flex items-center gap-2">
+                            <i class="fas fa-file-import"></i> Importar CSV/XLSX
                         </button>
                     </div>
                 </div>
-            `).join('');
+
+                <div class="glass rounded-3xl overflow-hidden">
+                    <table class="w-full text-left">
+                        <thead class="bg-white/5 border-b border-white/10">
+                            <tr>
+                                <th class="px-6 py-4 font-bold text-slate-300">Nome</th>
+                                <th class="px-6 py-4 font-bold text-slate-300">Email</th>
+                                <th class="px-6 py-4 font-bold text-slate-300">Tags</th>
+                                <th class="px-6 py-4 font-bold text-slate-300 text-right">Ações</th>
+                            </tr>
+                        </thead>
+                        <tbody id="leadsTable" class="divide-y divide-white/5">
+                            <!-- Leads here -->
+                        </tbody>
+                    </table>
+                </div>
+            </section>
+
+            <!-- Templates Section -->
+            <section id="section-templates" class="hidden space-y-8">
+                <div class="flex items-center justify-between">
+                    <div>
+                        <h2 class="text-3xl font-bold text-white">Modelos de Email</h2>
+                        <p class="text-slate-400">Crie layouts HTML impactantes.</p>
+                    </div>
+                    <button onclick="openTemplateEditor()"
+                        class="px-6 py-3 bg-cyan-500 text-white rounded-xl font-bold hover:bg-cyan-600 transition-all flex items-center gap-2">
+                        <i class="fas fa-plus"></i> Novo Modelo
+                    </button>
+                </div>
+
+                <div id="templatesGrid" class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
+                    <!-- Templates here -->
+                </div>
+            </section>
+
+            <!-- Campaigns Section -->
+            <section id="section-campaigns" class="hidden space-y-8">
+                <div class="flex items-center justify-between">
+                    <div>
+                        <h2 class="text-3xl font-bold text-white">Campanhas</h2>
+                        <p class="text-slate-400">Envios em massa com controle de entrega.</p>
+                    </div>
+                    <button onclick="openCampaignWizard()"
+                        class="px-6 py-3 bg-cyan-500 text-white rounded-xl font-bold hover:bg-cyan-600 transition-all flex items-center gap-2">
+                        <i class="fas fa-rocket"></i> Lançar Campanha
+                    </button>
+                </div>
+
+                <div id="campaignsList" class="space-y-4">
+                    <!-- Campaigns here -->
+                </div>
+            </section>
+
+            <!-- Settings Section -->
+            <section id="section-settings" class="hidden space-y-8">
+                <div>
+                    <h2 class="text-3xl font-bold text-white">Configurações</h2>
+                    <p class="text-slate-400">Configure seu servidor de e-mail (SMTP).</p>
+                </div>
+
+                <div class="glass p-8 rounded-3xl max-w-2xl space-y-6">
+                    <div class="grid grid-cols-1 gap-6">
+                        <div>
+                            <label class="block text-sm font-bold text-slate-400 mb-2">Email do Remetente</label>
+                            <input type="email" id="set-email"
+                                class="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-white focus:border-cyan-500 transition-all outline-none">
+                        </div>
+                        <div>
+                            <label class="block text-sm font-bold text-slate-400 mb-2">Nome de Exibição</label>
+                            <input type="text" id="set-name"
+                                class="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-white focus:border-cyan-500 transition-all outline-none">
+                        </div>
+                        <div class="grid grid-cols-3 gap-4">
+                            <div class="col-span-2">
+                                <label class="block text-sm font-bold text-slate-400 mb-2">Servidor SMTP</label>
+                                <input type="text" id="set-host" placeholder="smtp.office365.com"
+                                    class="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-white focus:border-cyan-500 transition-all outline-none">
+                            </div>
+                            <div>
+                                <label class="block text-sm font-bold text-slate-400 mb-2">Porta</label>
+                                <input type="number" id="set-port" placeholder="587"
+                                    class="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-white focus:border-cyan-500 transition-all outline-none">
+                            </div>
+                        </div>
+                        <div>
+                            <label class="block text-sm font-bold text-slate-400 mb-2">Senha / App Password</label>
+                            <input type="password" id="set-pass"
+                                class="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-white focus:border-cyan-500 transition-all outline-none">
+                        </div>
+                    </div>
+                    <button onclick="saveConfig()"
+                        class="w-full py-4 bg-cyan-500 text-white rounded-xl font-bold hover:bg-cyan-600 transition-all shadow-lg shadow-cyan-500/20">
+                        Salvar Configurações
+                    </button>
+                </div>
+            </section>
+
+        </main>
+    </div>
+
+    <!-- Modals (Leads, Editor, etc) -->
+    <div id="modalOverlay"
+        class="fixed inset-0 bg-black/80 backdrop-blur-md z-[100] hidden items-center justify-center p-4">
+        <div id="modalContent" class="glass w-full max-w-4xl max-h-[90vh] rounded-3xl overflow-y-auto p-8 relative">
+            <!-- Dynamic Content -->
+        </div>
+    </div>
+
+    <!-- Toast -->
+    <div id="toast"
+        class="fixed bottom-8 right-8 glass p-4 rounded-2xl flex items-center gap-4 transition-all duration-500 translate-y-32 z-[200]">
+        <div id="toastIconBg" class="p-2 rounded-lg">
+            <i id="toastIcon" class="fas text-sm"></i>
+        </div>
+        <p id="toastMsg" class="font-semibold text-white"></p>
+    </div>
+
+    <script>
+        // Core state
+        let currentTab = 'dashboard';
+        const sections = ['dashboard', 'gallery', 'leads', 'templates', 'campaigns', 'settings'];
+
+        function switchTab(tabId) {
+            sections.forEach(s => {
+                document.getElementById(`section-${s}`).classList.add('hidden');
+                const t = document.getElementById(`tab-${s}`);
+                if (t) t.classList.remove('active-tab', 'bg-white/5', 'text-cyan-400');
+            });
+
+            document.getElementById(`section-${tabId}`).classList.remove('hidden');
+            const activeTab = document.getElementById(`tab-${tabId}`);
+            if (activeTab) activeTab.classList.add('active-tab');
+
+            currentTab = tabId;
+
+            // Auto refresh content
+            if (tabId === 'gallery') loadImages();
+            if (tabId === 'leads') loadLeads();
+            if (tabId === 'templates') loadTemplates();
+            if (tabId === 'campaigns') loadCampaigns();
+            if (tabId === 'settings') loadConfig();
+            if (tabId === 'dashboard') loadStats();
         }
 
-        function copyLink(url) {
-            if (navigator.clipboard && navigator.clipboard.writeText) {
-                navigator.clipboard.writeText(url).then(() => {
-                    showToast('Link copied for email!');
-                }).catch(err => {
-                    fallbackCopyTextToClipboard(url);
-                });
-            } else {
-                fallbackCopyTextToClipboard(url);
-            }
-        }
-
-        function fallbackCopyTextToClipboard(text) {
-            const textArea = document.createElement("textarea");
-            textArea.value = text;
-            document.body.appendChild(textArea);
-            textArea.focus();
-            textArea.select();
-            try {
-                document.execCommand('copy');
-                showToast('Link copied (fallback)!');
-            } catch (err) {
-                console.error('Fallback copy failed', err);
-                showToast('Copy failed', 'error');
-            }
-            document.body.removeChild(textArea);
-        }
-
-        async function deleteImage(filename) {
-            if (!confirm('Are you sure you want to delete this image?')) return;
-
-            try {
-                const response = await fetch(`/api/images/${filename}`, { method: 'DELETE' });
-                const result = await response.json();
-                if (result.success) {
-                    showToast('Image deleted');
-                    await loadImages();
-                }
-            } catch (err) {
-                console.error('Delete error:', err);
-                showToast('Delete failed', 'error');
-            }
-        }
-
+        // --- Notifications ---
         function showToast(msg, type = 'success') {
+            const toast = document.getElementById('toast');
             const toastMsg = document.getElementById('toastMsg');
             const toastIconBg = document.getElementById('toastIconBg');
             const toastIcon = document.getElementById('toastIcon');
 
             toastMsg.innerText = msg;
-            toast.classList.remove('translate-y-24');
+            toast.classList.remove('translate-y-32');
 
-            // Reset classes
             toastIconBg.className = 'p-2 rounded-lg';
             toastIcon.className = 'fas text-sm';
 
@@ -279,12 +386,359 @@
                 toastIcon.classList.add('fa-check', 'text-cyan-400');
             }
 
-            setTimeout(() => {
-                toast.classList.add('translate-y-24');
-            }, 3000);
+            setTimeout(() => { toast.classList.add('translate-y-32'); }, 4000);
         }
 
-        loadImages();
+        // --- Gallery ---
+        async function loadImages() {
+            try {
+                const response = await fetch('/api/images');
+                const images = await response.json();
+                const grid = document.getElementById('imageGrid');
+                grid.innerHTML = images.map(img => `
+                    <div class="glass p-4 rounded-3xl glass-hover group">
+                        <div class="aspect-square rounded-2xl overflow-hidden bg-slate-800 mb-4 relative">
+                            <img src="${img.url}" class="w-full h-full object-cover">
+                            <button onclick="deleteImage('${img.filename}')" class="absolute top-2 right-2 p-2 bg-rose-500/80 text-white rounded-lg opacity-0 group-hover:opacity-100 transition-opacity">
+                                <i class="fas fa-trash-alt"></i>
+                            </button>
+                        </div>
+                        <button onclick="copyToClipboard('${img.url}')" class="w-full py-2 bg-white/5 border border-white/10 rounded-xl text-xs font-bold hover:bg-cyan-500/10 hover:text-cyan-400 transition-all">
+                            Copiar Link Direto
+                        </button>
+                    </div>
+                `).join('');
+            } catch (err) { showToast('Erro ao carregar galeria', 'error'); }
+        }
+
+        async function deleteImage(filename) {
+            if (!confirm('Deletar imagem?')) return;
+            try {
+                await fetch(\`/api/images/\${filename}\`, { method: 'DELETE' });
+                showToast('Imagem removida');
+                loadImages();
+            } catch (err) { showToast('Falha ao deletar', 'error'); }
+        }
+
+        // --- Leads ---
+        async function loadLeads() {
+            try {
+                const response = await fetch('/api/marketing/leads');
+                const leads = await response.json();
+                const table = document.getElementById('leadsTable');
+                table.innerHTML = leads.map(l => `
+                    < tr >
+                        <td class="px-6 py-4 text-white font-medium">${l.name || 'Sem nome'}</td>
+                        <td class="px-6 py-4 text-slate-400">${l.email}</td>
+                        <td class="px-6 py-4">
+                            ${l.tags.map(t => `<span class="px-2 py-0.5 bg-cyan-500/10 text-cyan-400 text-[10px] font-bold rounded-full mr-1">${t}</span>`).join('')}
+                        </td>
+                        <td class="px-6 py-4 text-right">
+                            <button onclick="deleteLead('${l.id}')" class="text-slate-500 hover:text-rose-400 px-2 transition-all">
+                                <i class="fas fa-user-minus"></i>
+                            </button>
+                        </td>
+                    </tr >
+                    `).join('') || '<tr><td colspan="4" class="p-12 text-center text-slate-500">Nenhum lead cadastrado ainda.</td></tr>';
+            } catch (err) { console.error(err); }
+        }
+
+        async function importLeads(input) {
+            const formData = new FormData();
+            formData.append('file', input.files[0]);
+            showToast('Importando...', 'info');
+            try {
+                const res = await fetch('/api/marketing/leads/import', { method: 'POST', body: formData });
+                const result = await res.json();
+                showToast(`Sucesso! ${ result.imported } novos, ${ result.duplicates } duplicados.`);
+                loadLeads();
+            } catch (err) { showToast('Falha na importação', 'error'); }
+            input.value = '';
+        }
+
+        async function deleteLead(id) {
+            if(!confirm('Remover lead?')) return;
+            await fetch(\`/api/marketing/leads/\${id}\`, { method: 'DELETE' });
+            loadLeads();
+        }
+
+        // --- Templates ---
+        async function loadTemplates() {
+            try {
+                const response = await fetch('/api/marketing/templates');
+                const templates = await response.json();
+                const grid = document.getElementById('templatesGrid');
+                grid.innerHTML = templates.map(t => `
+                < div class= "glass p-6 rounded-3xl glass-hover" >
+                        <h4 class="text-lg font-bold text-white mb-1">${t.name}</h4>
+                        <p class="text-xs text-slate-500 mb-4">Assunto: ${t.subject}</p>
+                        <div class="flex gap-2">
+                            <button onclick='openTemplateEditor(${JSON.stringify(t).replace(/'/g, "&apos;")})' class="flex-1 py-2 bg-white/5 border border-white/10 rounded-xl text-xs font-bold hover:text-cyan-400 transition-all">Editar</button>
+                            <button onclick="deleteTemplate('${t.id}')" class="p-2 text-slate-500 hover:text-rose-400 transition-all"><i class="fas fa-trash"></i></button>
+                        </div >
+                    </div >
+                    `).join('') || '<div class="col-span-full p-12 text-center text-slate-500">Nenhum modelo criado.</div>';
+            } catch (err) { }
+        }
+
+        function openTemplateEditor(template = null) {
+            const modal = document.getElementById('modalContent');
+            modal.innerHTML = `
+                    < div class= "flex justify-between items-center mb-6" >
+                    <h2 class="text-2xl font-bold text-white">${template ? 'Editar Modelo' : 'Novo Modelo'}</h2>
+                    <button onclick="closeModal()" class="text-slate-400 hover:text-rose-400"><i class="fas fa-times text-xl"></i></button>
+                </div >
+                    <div class="space-y-4">
+                        <input type="text" id="tpl-name" placeholder="Nome Interno" value="${template ? template.name : ''}" class="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-white outline-none">
+                            <input type="text" id="tpl-subject" placeholder="Assunto do Email" value="${template ? template.subject : ''}" class="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-white outline-none">
+                                <div class="grid grid-cols-1 md:grid-cols-2 gap-4 h-[400px]">
+                                    <textarea id="tpl-html" placeholder="HTML do Email..." class="w-full h-full bg-slate-900 border border-white/10 rounded-xl p-4 text-xs font-mono text-cyan-300 outline-none resize-none" oninput="updatePreview()">${template ? template.htmlContent : '<html><body><h1>Ola {{name}}!</h1></body></html>'}</textarea>
+                                    <div class="w-full h-full bg-white rounded-xl overflow-y-auto">
+                                        <iframe id="tpl-preview" class="w-full h-full border-0"></iframe>
+                                    </div>
+                                </div>
+                                <button onclick="saveTemplate('${template ? template.id : ''}')" class="w-full py-4 bg-cyan-500 text-white rounded-xl font-bold hover:bg-cyan-600 transition-all">Salvar Modelo</button>
+                            </div>
+                            `;
+                            document.getElementById('modalOverlay').classList.remove('hidden');
+                            document.getElementById('modalOverlay').classList.add('flex');
+                            updatePreview();
+        }
+
+                            function updatePreview() {
+            const html = document.getElementById('tpl-html').value;
+                            const iframe = document.getElementById('tpl-preview');
+                            const doc = iframe.contentDocument || iframe.contentWindow.document;
+                            doc.open();
+                            doc.write(html.replace(/{{ name }}/gi, 'Cliente Exemplo'));
+                            doc.close();
+        }
+
+                            async function saveTemplate(id) {
+            const data = {
+                                id: id || undefined,
+                            name: document.getElementById('tpl-name').value,
+                            subject: document.getElementById('tpl-subject').value,
+                            htmlContent: document.getElementById('tpl-html').value
+            };
+                            await fetch('/api/marketing/templates', {
+                                method: 'POST',
+                            headers: {'Content-Type': 'application/json'},
+                            body: JSON.stringify(data)
+            });
+                            showToast('Modelo salvo!');
+                            closeModal();
+                            loadTemplates();
+        }
+
+                            async function deleteTemplate(id) {
+            if(!confirm('Remover modelo?')) return;
+                            await fetch(\`/api/marketing/templates/\${id}\`, {method: 'DELETE' });
+                            loadTemplates();
+        }
+
+                            // --- Campaigns ---
+                            async function loadCampaigns() {
+            try {
+                const response = await fetch('/api/marketing/campaigns');
+                            const campaigns = await response.json();
+                            const list = document.getElementById('campaignsList');
+                list.innerHTML = campaigns.map(c => {
+                    const progress = c.totalLeads ? Math.round((c.sentCount / c.totalLeads) * 100) : 0;
+                            const statusColors = {'draft': 'bg-slate-500/20 text-slate-400', 'running': 'bg-cyan-500/20 text-cyan-400', 'completed': 'bg-green-500/20 text-green-400', 'failed': 'bg-rose-500/20 text-rose-400' };
+                            return `
+                            <div class="glass p-6 rounded-3xl flex flex-col md:flex-row md:items-center justify-between gap-6">
+                                <div class="flex-1">
+                                    <div class="flex items-center gap-3 mb-2">
+                                        <h4 class="text-xl font-bold text-white">${c.name}</h4>
+                                        <span class="px-2 py-0.5 rounded-full text-[10px] uppercase font-bold ${statusColors[c.status]}">${c.status}</span>
+                                    </div>
+                                    <p class="text-sm text-slate-400">Progresso: ${c.sentCount} de ${c.totalLeads || 0} emails</p>
+                                    <div class="w-full h-1.5 bg-white/5 rounded-full mt-3 overflow-hidden">
+                                        <div class="h-full bg-cyan-500 transition-all duration-1000" style="width: ${progress}%"></div>
+                                    </div>
+                                </div>
+                                <div class="flex gap-2">
+                                    ${c.status !== 'running' ? `<button onclick="startCampaign('${c.id}')" class="px-4 py-2 bg-cyan-500/20 text-cyan-400 rounded-xl text-xs font-bold hover:bg-cyan-500 hover:text-white transition-all">Iniciar</button>` : `<button onclick="stopCampaign('${c.id}')" class="px-4 py-2 bg-rose-500/20 text-rose-400 rounded-xl text-xs font-bold">Parar</button>`}
+                                    <button onclick="deleteCampaign('${c.id}')" class="p-2 text-slate-500 hover:text-rose-400 transition-all"><i class="fas fa-trash"></i></button>
+                                </div>
+                            </div>
+                            `;
+                }).join('') || '<div class="p-12 text-center text-slate-500">Nenhuma campanha cadastrada.</div>';
+            } catch (err) { }
+        }
+
+                            async function openCampaignWizard() {
+            const templates = await (await fetch('/api/marketing/templates')).json();
+                            const leads = await (await fetch('/api/marketing/leads')).json();
+            const tags = [...new Set(leads.flatMap(l => l.tags))];
+
+                            const modal = document.getElementById('modalContent');
+                            modal.innerHTML = `
+                            <div class="flex justify-between items-center mb-6">
+                                <h2 class="text-2xl font-bold text-white">Nova Campanha</h2>
+                                <button onclick="closeModal()" class="text-slate-400 hover:text-rose-400"><i class="fas fa-times text-xl"></i></button>
+                            </div>
+                            <div class="space-y-6">
+                                <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                                    <div>
+                                        <label class="block text-sm font-bold text-slate-400 mb-2">Nome da Campanha</label>
+                                        <input type="text" id="camp-name" placeholder="Ex: Promoção de Verão" class="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-white outline-none">
+                                    </div>
+                                    <div>
+                                        <label class="block text-sm font-bold text-slate-400 mb-2">Assunto Personalizado</label>
+                                        <input type="text" id="camp-subject" placeholder="Deixe em branco p/ usar o do modelo" class="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-white outline-none">
+                                    </div>
+                                    <div>
+                                        <label class="block text-sm font-bold text-slate-400 mb-2">Modelo de Email</label>
+                                        <select id="camp-template" class="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-white outline-none">
+                                            ${templates.map(t => `<option value="${t.id}" class="bg-slate-900">${t.name}</option>`).join('')}
+                                        </select>
+                                    </div>
+                                    <div>
+                                        <label class="block text-sm font-bold text-slate-400 mb-2">Público Alvo (Tags)</label>
+                                        <div id="camp-tags" class="flex flex-wrap gap-2 p-3 bg-white/5 border border-white/10 rounded-xl min-h-[50px]">
+                                            ${tags.map(t => `
+                                    <label class="flex items-center gap-2 px-3 py-1 bg-white/5 rounded-full cursor-pointer hover:bg-cyan-500/10 transition-all border border-transparent has-[:checked]:border-cyan-500 has-[:checked]:text-cyan-400">
+                                        <input type="checkbox" value="${t}" class="hidden">
+                                        <span class="text-xs font-bold">${t}</span>
+                                    </label>
+                                `).join('') || '<span class="text-xs text-slate-500">Nenhuma tag disponível</span>'}
+                                        </div>
+                                    </div>
+                                </div>
+                                <button onclick="saveCampaign()" class="w-full py-4 bg-cyan-500 text-white rounded-xl font-bold hover:bg-cyan-600 transition-all">Criar Campanha</button>
+                            </div>
+            `;
+            document.getElementById('modalOverlay').classList.remove('hidden');
+            document.getElementById('modalOverlay').classList.add('flex');
+        }
+
+        async function saveCampaign() {
+            const selectedTags = Array.from(document.querySelectorAll('#camp-tags input:checked')).map(i => i.value);
+            const templateId = document.getElementById('camp-template').value;
+            const templates = await (await fetch('/api/marketing/templates')).json();
+            const template = templates.find(t => t.id == templateId);
+
+            const data = {
+                name: document.getElementById('camp-name').value,
+                templateId: templateId,
+                subject: document.getElementById('camp-subject').value || (template ? template.subject : ''),
+                targetTags: selectedTags,
+                status: 'draft'
+            };
+            await fetch('/api/marketing/campaigns', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify(data)
+            });
+            showToast('Campanha criada!');
+            closeModal();
+            loadCampaigns();
+        }
+
+        async function startCampaign(id) {
+            await fetch(\`/api/marketing/campaigns/\${id}/start\`, { method: 'POST' });
+            showToast('Campanha iniciada!', 'info');
+            loadCampaigns();
+        }
+
+        async function stopCampaign(id) {
+            await fetch(\`/api/marketing/campaigns/\${id}/stop\`, { method: 'POST' });
+            showToast('Campanha pausada', 'info');
+            loadCampaigns();
+        }
+
+        async function deleteCampaign(id) {
+            if(!confirm('Remover campanha?')) return;
+            await fetch(\`/api/marketing/campaigns/\${id}\`, { method: 'DELETE' });
+            loadCampaigns();
+        }
+
+        // --- Settings ---
+        async function loadConfig() {
+            try {
+                const config = await (await fetch('/api/marketing/config')).json();
+                document.getElementById('set-email').value = config.senderEmail || '';
+                document.getElementById('set-name').value = config.senderName || '';
+                document.getElementById('set-host').value = config.smtpHost || '';
+                document.getElementById('set-port').value = config.smtpPort || '';
+                document.getElementById('set-pass').value = config.smtpPassword || '';
+            } catch (err) { }
+        }
+
+        async function saveConfig() {
+            const data = {
+                senderEmail: document.getElementById('set-email').value,
+                senderName: document.getElementById('set-name').value,
+                smtpHost: document.getElementById('set-host').value,
+                smtpPort: parseInt(document.getElementById('set-port').value),
+                smtpPassword: document.getElementById('set-pass').value,
+                smtpSecure: true
+            };
+            await fetch('/api/marketing/config', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify(data)
+            });
+            showToast('Configurações salvas!');
+        }
+
+        // --- Stats ---
+        async function loadStats() {
+            try {
+                const leads = await (await fetch('/api/marketing/leads')).json();
+                const images = await (await fetch('/api/images')).json();
+                const campaigns = await (await fetch('/api/marketing/campaigns')).json();
+
+                document.getElementById('stat-leads').innerText = leads.length;
+                document.getElementById('stat-images').innerText = images.length;
+                document.getElementById('stat-active-camp').innerText = campaigns.filter(c => c.status === 'running').length;
+
+                let totalSent = 0;
+                campaigns.forEach(c => totalSent += (c.sentCount || 0));
+                document.getElementById('stat-sent').innerText = totalSent;
+            } catch (err) { }
+        }
+
+        // --- Utils ---
+        function closeModal() {
+            document.getElementById('modalOverlay').classList.add('hidden');
+            document.getElementById('modalOverlay').classList.remove('flex');
+        }
+
+        function copyToClipboard(text) {
+            navigator.clipboard.writeText(text).then(() => {
+                showToast('Link copiado para o email!');
+            });
+        }
+
+        // Init
+        // Refresh stats periodically
+        setInterval(loadStats, 10000);
+        loadStats();
+
+        // Drag & Drop for Gallery
+        const dropzone = document.getElementById('dropzone');
+        const fileInput = document.getElementById('fileInput');
+
+        fileInput.addEventListener('change', async (e) => {
+            const file = e.target.files[0];
+            if (!file) return;
+            const formData = new FormData();
+            formData.append('image', file);
+            showToast('Enviando...', 'info');
+            try {
+                const res = await fetch('/api/upload', { method: 'POST', body: formData });
+                const result = await res.json();
+                if(result.success) {
+                    showToast('Sucesso!');
+                    loadImages();
+                }
+            } catch (err) { showToast('Erro no upload', 'error'); }
+            fileInput.value = '';
+        });
+
     </script>
 </body>
 

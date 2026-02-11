@@ -1,13 +1,15 @@
 version: '3.8'
 
 services:
-  hdt-gallery:
+  hdt-conecte:
     build: .
     ports:
       - "3000:3000"
     volumes:
       - uploads_data:/app/uploads
+      - hdt_data:/app/data
     restart: always
 
 volumes:
   uploads_data:
+  hdt_data:
