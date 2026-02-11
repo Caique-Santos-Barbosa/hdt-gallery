@@ -260,7 +260,7 @@
                     </div>
                 </div>
 
-                <div id="templatesGrid" class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
+                <div id="templatesGrid" class="grid grid-cols-1 lg:grid-cols-2 gap-6">
                     <!-- Templates here -->
                 </div>
             </section>
@@ -541,9 +541,11 @@
                 grid.innerHTML = templates.map(t => `
                     <div class="glass p-4 rounded-3xl flex flex-col md:flex-row gap-6 border border-white/5 hover:border-cyan-500/20 transition-all group">
                         <!-- Horizontal Preview -->
-                        <div class="w-full md:w-48 lg:w-64 h-32 md:h-auto bg-white rounded-2xl overflow-hidden pointer-events-none relative border border-white/10">
-                            <iframe srcdoc="${t.htmlContent.replace(/"/g, '&quot;').replace(/{{name}}/gi, 'Cliente')}" class="w-[1200px] h-[800px] border-0 origin-top-left scale-[0.2]"></iframe>
-                            <div class="absolute inset-0 bg-gradient-to-r from-transparent via-transparent to-slate-950/20"></div>
+                        <div class="w-full md:w-64 h-48 bg-white rounded-2xl overflow-hidden pointer-events-none relative border border-white/10 flex-shrink-0">
+                            <div class="w-[1000px] h-[750px] origin-top-left scale-[0.256]">
+                                <iframe srcdoc="${t.htmlContent.replace(/"/g, '&quot;').replace(/{{name}}/gi, 'Cliente')}" class="w-full h-full border-0"></iframe>
+                            </div>
+                            <div class="absolute inset-0 bg-gradient-to-r from-transparent via-transparent to-slate-950/10"></div>
                         </div>
 
                         <!-- Content -->
