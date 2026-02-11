@@ -162,6 +162,10 @@ app.post('/api/marketing/leads/import', memoryUpload.single('file'), async (req,
 // Templates
 app.get('/api/marketing/templates', async (req, res) => res.json(await storage.getTemplates()));
 app.post('/api/marketing/templates', async (req, res) => res.json(await storage.saveTemplate(req.body)));
+app.put('/api/marketing/templates/:id', async (req, res) => {
+  const template = { ...req.body, id: req.params.id };
+  res.json(await storage.saveTemplate(template));
+});
 
 app.post('/api/marketing/templates/upload', memoryUpload.single('file'), async (req, res) => {
   if (!req.file) return res.status(400).json({ error: 'No file' });
@@ -186,6 +190,10 @@ app.delete('/api/marketing/templates/:id', async (req, res) => {
 // Campaigns
 app.get('/api/marketing/campaigns', async (req, res) => res.json(await storage.getCampaigns()));
 app.post('/api/marketing/campaigns', async (req, res) => res.json(await storage.saveCampaign(req.body)));
+app.put('/api/marketing/campaigns/:id', async (req, res) => {
+  const campaign = { ...req.body, id: req.params.id };
+  res.json(await storage.saveCampaign(campaign));
+});
 app.delete('/api/marketing/campaigns/:id', async (req, res) => {
   await storage.deleteCampaign(req.params.id);
   res.json({ success: true });

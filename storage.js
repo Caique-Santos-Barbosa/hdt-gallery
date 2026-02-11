@@ -92,12 +92,13 @@ const storage = {
     },
     async saveTemplate(template) {
         const db = await getDb();
-        if (template.id) {
-            const index = db.templates.findIndex(t => t.id === template.id);
+        const index = template.id ? db.templates.findIndex(t => t.id === template.id) : -1;
+
+        if (index > -1) {
             db.templates[index] = { ...db.templates[index], ...template };
         } else {
-            template.id = Date.now() + Math.random().toString(36).substr(2, 9);
-            template.createdAt = new Date();
+            if (!template.id) template.id = Date.now() + Math.random().toString(36).substr(2, 9);
+            template.createdAt = template.createdAt || new Date();
             db.templates.push(template);
         }
         await saveDb(db);
