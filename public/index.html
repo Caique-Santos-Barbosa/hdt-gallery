@@ -50,6 +50,40 @@
         ::-webkit-scrollbar-thumb:hover {
             background: rgba(34, 211, 238, 0.4);
         }
+
+        .modal-full {
+            max-width: 100vw !important;
+            max-height: 100vh !important;
+            width: 100vw !important;
+            height: 100vh !important;
+            border-radius: 0 !important;
+            margin: 0 !important;
+            padding: 0 !important;
+        }
+
+        .builder-sidebar {
+            width: 320px;
+            border-right: 1px solid rgba(255, 255, 255, 0.08);
+            display: flex;
+            flex-direction: column;
+            overflow-y: auto;
+            background: rgba(15, 23, 42, 0.95);
+        }
+
+        .builder-workspace {
+            flex: 1;
+            background: #f1f5f9;
+            display: flex;
+            justify-content: center;
+            padding: 40px;
+            overflow-y: auto;
+        }
+
+        .builder-preview-container {
+            background: white;
+            box-shadow: 0 20px 50px rgba(0, 0, 0, 0.1);
+            transition: width 0.3s ease;
+        }
     </style>
 </head>
 
@@ -429,7 +463,7 @@
 
     <!-- Modals (Leads, Editor, etc) -->
     <div id="modalOverlay"
-        class="fixed inset-0 bg-black/80 backdrop-blur-md z-[100] hidden items-center justify-center p-4">
+        class="fixed inset-0 bg-black/80 backdrop-blur-md z-[100] hidden items-center justify-center">
         <div id="modalContent" class="glass w-full max-w-4xl max-h-[90vh] rounded-3xl overflow-y-auto p-8 relative">
             <!-- Dynamic Content -->
         </div>
@@ -743,7 +777,7 @@
                 grid.innerHTML = templates.map(t => `
                     <div class="glass p-4 rounded-3xl flex flex-col md:flex-row gap-6 border border-white/5 hover:border-cyan-500/20 transition-all group">
                         <!-- Horizontal Preview -->
-                        <div class="w-full md:w-64 h-48 bg-white rounded-2xl overflow-hidden pointer-events-none relative border border-white/10 flex-shrink-0">
+                        <div class="w-full md:w-64 h-[197px] rounded-2xl overflow-hidden pointer-events-none relative border border-white/5 flex-shrink-0">
                             <div class="w-[1000px] h-[750px] origin-top-left scale-[0.256]">
                                 <iframe srcdoc="${t.htmlContent.replace(/"/g, '&quot;').replace(/{{name}}/gi, 'Cliente')}" class="w-full h-full border-0"></iframe>
                             </div>
@@ -783,133 +817,325 @@
             } catch (err) { }
         }
 
+        let selectedEl = null;
+        let isVisualMode = true;
+
         function openTemplateEditor(template = null) {
             const modal = document.getElementById('modalContent');
+            const overlay = document.getElementById('modalOverlay');
+
+            modal.classList.add('modal-full');
+            modal.classList.remove('p-8', 'max-w-4xl', 'max-h-[90vh]', 'rounded-3xl', 'overflow-y-auto');
+            overlay.classList.add('p-0');
+
+            const currentId = template ? template.id : '';
+            const currentName = template ? template.name : 'Novo Modelo';
+            const currentSubject = template ? template.subject : '';
+            const currentHtml = template ? template.htmlContent : `
+<!DOCTYPE html>
+<html>
+<head>
+    <style>
+        body { background-color: #f4f4f5; font-family: Arial, sans-serif; margin: 0; padding: 40px; }
+        .email-body { background-color: #ffffff; max-width: 600px; width: 100%; margin: 0 auto; padding: 20px; border-radius: 8px; box-shadow: 0 4px 6px rgba(0,0,0,0.05); }
+        h1 { color: #1a202c; }
+        p { color: #4a5568; line-height: 1.6; }
+    </style>
+</head>
+<body>
+    <center>
+        <div id="email-container" class="email-body">
+            <h1 style="color: #1a202c;">Olá, {{name}}!</h1>
+            <p style="color: #4a5568;">Este é o seu novo modelo de email pronto para ser editado. Use o menu lateral para customizar.</p>
+        </div>
+    </center>
+</body>
+</html>`.trim();
+
             modal.innerHTML = `
-                <div class="flex flex-col h-full max-h-[85vh]">
-                    <div class="flex justify-between items-center mb-6">
-                        <div>
-                            <h2 class="text-2xl font-bold text-white">${template ? 'Editar Modelo' : 'Novo Modelo'}</h2>
-                            <p class="text-xs text-slate-500">${template ? template.name : 'Configuração de layout de email'}</p>
-                        </div>
-                        <div class="flex gap-2">
-                             <button onclick="toggleEditorMode()" id="toggle-editor" class="px-4 py-2 bg-white/5 border border-white/10 rounded-xl text-xs font-bold text-cyan-400 hover:bg-cyan-500/10 transition-all flex items-center gap-2">
-                                <i class="fas fa-eye"></i> Modo Visual
+                <div class="flex flex-col h-screen text-slate-300">
+                    <!-- Top Bar -->
+                    <div class="h-16 border-b border-white/10 bg-slate-900 flex items-center justify-between px-6 shrink-0 z-50">
+                        <div class="flex items-center gap-4">
+                            <button onclick="closeModal()" class="w-8 h-8 rounded-full hover:bg-white/5 flex items-center justify-center transition-all">
+                                <i class="fas fa-arrow-left"></i>
                             </button>
-                            <button onclick="closeModal()" class="text-slate-400 hover:text-rose-400 p-2"><i class="fas fa-times text-xl"></i></button>
-                        </div>
-                    </div>
-                    
-                    <div class="grid grid-cols-1 lg:grid-cols-12 gap-6 flex-1 overflow-hidden">
-                        <!-- Left Panel: Controls/Code -->
-                        <div id="editor-left" class="lg:col-span-5 flex flex-col gap-4 overflow-hidden">
-                            <div class="space-y-4">
-                                <div>
-                                    <label class="block text-[10px] font-bold text-slate-500 uppercase mb-1">Nome do Modelo</label>
-                                    <input type="text" id="tpl-name" placeholder="Nome Interno" value="${template ? template.name : ''}" class="w-full bg-slate-900/50 border border-white/10 rounded-xl px-4 py-2.5 text-white outline-none focus:border-cyan-500">
-                                </div>
-                                <div>
-                                    <label class="block text-[10px] font-bold text-slate-500 uppercase mb-1">Assunto do E-mail</label>
-                                    <input type="text" id="tpl-subject" placeholder="Assunto" value="${template ? template.subject : ''}" class="w-full bg-slate-900/50 border border-white/10 rounded-xl px-4 py-2.5 text-white outline-none focus:border-cyan-500">
-                                </div>
-                            </div>
-                            <div class="flex-1 flex flex-col min-h-[300px]">
-                                <label class="block text-[10px] font-bold text-slate-500 uppercase mb-1">Código HTML</label>
-                                <textarea id="tpl-html" class="flex-1 w-full bg-slate-950 border border-white/10 rounded-xl p-4 text-[11px] font-mono text-cyan-300 outline-none resize-none leading-relaxed" oninput="updatePreview()">${template ? template.htmlContent : '<html><body style="font-family: Arial; padding: 40px; color: #333;"><h1>Olá, {{name}}!</h1><p>Este é o seu novo modelo de email pronto para ser editado.</p></body></html>'}</textarea>
+                            <div>
+                                <h3 class="text-sm font-bold text-white">${currentName}</h3>
+                                <p class="text-[10px] text-slate-500">${currentSubject || 'Sem assunto'}</p>
                             </div>
                         </div>
-
-                        <!-- Right Panel: Visual Preview/Edit -->
-                        <div class="lg:col-span-7 flex flex-col gap-2 overflow-hidden relative">
-                            <label class="block text-[10px] font-bold text-slate-500 uppercase">Visualização Interativa</label>
-                            
-                            <!-- Floating Visual Toolbar -->
-                            <div id="visual-toolbar" class="absolute top-8 left-1/2 -translate-x-1/2 bg-slate-900/90 backdrop-blur-md border border-white/10 p-2 rounded-2xl flex items-center gap-3 shadow-2xl z-[100] hidden">
-                                <div class="flex items-center gap-1 border-r border-white/10 pr-2">
-                                    <button onclick="execCmd('bold')" class="p-2 hover:bg-cyan-500/20 rounded-lg text-white" title="Negrito"><i class="fas fa-bold"></i></button>
-                                    <button onclick="execCmd('italic')" class="p-2 hover:bg-cyan-500/20 rounded-lg text-white" title="Itálico"><i class="fas fa-italic"></i></button>
-                                    <button onclick="execCmd('underline')" class="p-2 hover:bg-cyan-500/20 rounded-lg text-white" title="Sublinhado"><i class="fas fa-underline"></i></button>
-                                </div>
-                                <div class="flex items-center gap-1 border-r border-white/10 pr-2">
-                                    <select onchange="execCmd('fontSize', this.value)" class="bg-transparent border-0 text-[10px] text-white outline-none cursor-pointer p-1 hover:bg-white/5 rounded">
-                                        <option value="3" class="bg-slate-900">Normal</option>
-                                        <option value="1" class="bg-slate-900">Pequeno</option>
-                                        <option value="5" class="bg-slate-900">Grande</option>
-                                        <option value="7" class="bg-slate-900">Gigante</option>
-                                    </select>
-                                    <input type="color" onchange="execCmd('foreColor', this.value)" class="w-6 h-6 p-0 border-0 bg-transparent cursor-pointer rounded overflow-hidden" title="Cor do Texto">
-                                </div>
-                                <div class="flex items-center gap-1">
-                                    <button onclick="execCmd('justifyLeft')" class="p-2 hover:bg-cyan-500/20 rounded-lg text-white"><i class="fas fa-align-left"></i></button>
-                                    <button onclick="execCmd('justifyCenter')" class="p-2 hover:bg-cyan-500/20 rounded-lg text-white"><i class="fas fa-align-center"></i></button>
-                                </div>
-                            </div>
-
-                            <div class="flex-1 bg-white rounded-2xl overflow-hidden relative border border-white/10">
-                                <iframe id="tpl-preview" class="w-full h-full border-0"></iframe>
-                            </div>
-                            <p class="text-[10px] text-slate-500 italic"><i class="fas fa-info-circle mr-1"></i> Passe o mouse para destacar, clique para editar e arraste para mover.</p>
+                        <div class="flex items-center gap-3">
+                             <button onclick="toggleEditorMode()" id="toggle-editor" class="px-4 py-2 bg-white/5 border border-white/10 rounded-xl text-xs font-bold text-cyan-400 hover:bg-cyan-500/10 transition-all flex items-center gap-2">
+                                <i class="fas fa-eye"></i> Preview / Código
+                            </button>
+                            <button onclick="saveTemplate('${currentId}')" class="px-6 py-2 bg-blue-600 text-white rounded-xl font-bold hover:bg-blue-700 transition-all shadow-lg shadow-blue-500/20">
+                                Salvar
+                            </button>
                         </div>
                     </div>
 
-                    <div class="mt-6 flex gap-4">
-                         <button onclick="saveTemplate('${template ? template.id : ''}')" class="flex-1 py-4 bg-blue-600 text-white rounded-2xl font-bold hover:bg-blue-700 transition-all shadow-lg shadow-blue-500/20">Salvar Alterações</button>
+                    <div class="flex flex-1 overflow-hidden bg-slate-950">
+                        <!-- Sidebar -->
+                        <div class="builder-sidebar border-r border-white/10 flex flex-col">
+                            <div class="flex-1 overflow-y-auto p-5 space-y-8">
+                                <!-- Global Controls -->
+                                <div class="space-y-4">
+                                    <div>
+                                        <label class="block text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-2">Informações</label>
+                                        <div class="space-y-3">
+                                            <input type="text" id="tpl-name" value="${currentName}" placeholder="Nome do Modelo" class="w-full bg-slate-900/50 border border-white/10 rounded-lg px-3 py-2 text-xs text-white outline-none focus:border-cyan-500 transition-all">
+                                            <input type="text" id="tpl-subject" value="${currentSubject}" placeholder="Assunto do E-mail" class="w-full bg-slate-900/50 border border-white/10 rounded-lg px-3 py-2 text-xs text-white outline-none focus:border-cyan-500 transition-all">
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <!-- Accordion: General Config -->
+                                <div class="space-y-4">
+                                    <div class="flex items-center justify-between cursor-pointer group" onclick="toggleAccordion('acc-config')">
+                                        <span class="text-[11px] font-bold text-slate-400 uppercase tracking-widest group-hover:text-white transition-all">Configuração Geral</span>
+                                        <i class="fas fa-chevron-down text-[10px] transition-transform" id="icon-acc-config"></i>
+                                    </div>
+                                    <div id="acc-config" class="space-y-4">
+                                        <div>
+                                            <label class="block text-[10px] text-slate-500 mb-2">Fundo do E-mail</label>
+                                            <div class="flex items-center gap-2">
+                                                <input type="color" oninput="updateBodyStyle('backgroundColor', this.value)" class="w-10 h-10 rounded-lg bg-slate-800 border-0 cursor-pointer p-0 overflow-hidden">
+                                                <input type="text" placeholder="#f4f4f5" class="flex-1 bg-slate-900/50 border border-white/10 rounded-lg px-3 py-2 text-xs text-white outline-none" oninput="updateBodyStyle('backgroundColor', this.value)">
+                                            </div>
+                                        </div>
+                                        <div>
+                                            <label class="block text-[10px] text-slate-500 mb-2">Largura do Conteúdo</label>
+                                            <div class="flex items-center gap-3">
+                                                <input type="range" min="400" max="900" value="600" class="flex-1 accent-cyan-500" oninput="updateContainerWidth(this.value)">
+                                                <span id="width-val" class="text-[10px] font-bold text-white w-12 text-right">600px</span>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <!-- Accordion: Add Blocks -->
+                                <div class="space-y-4">
+                                    <div class="flex items-center justify-between cursor-pointer group" onclick="toggleAccordion('acc-blocks')">
+                                        <span class="text-[11px] font-bold text-slate-400 uppercase tracking-widest group-hover:text-white transition-all">Inserir Blocos</span>
+                                        <i class="fas fa-chevron-down text-[10px] transition-transform" id="icon-acc-blocks"></i>
+                                    </div>
+                                    <div id="acc-blocks" class="grid grid-cols-2 gap-2">
+                                        <button onclick="addBlock('heading')" class="flex flex-col items-center gap-2 p-3 bg-white/5 border border-white/5 rounded-xl hover:border-cyan-500/30 hover:bg-cyan-500/5 transition-all group">
+                                            <i class="fas fa-heading text-slate-500 group-hover:text-cyan-400"></i>
+                                            <span class="text-[10px] font-bold">Título</span>
+                                        </button>
+                                        <button onclick="addBlock('text')" class="flex flex-col items-center gap-2 p-3 bg-white/5 border border-white/5 rounded-xl hover:border-cyan-500/30 hover:bg-cyan-500/5 transition-all group">
+                                            <i class="fas fa-align-left text-slate-500 group-hover:text-cyan-400"></i>
+                                            <span class="text-[10px] font-bold">Parágrafo</span>
+                                        </button>
+                                        <button onclick="addBlock('image')" class="flex flex-col items-center gap-2 p-3 bg-white/5 border border-white/5 rounded-xl hover:border-cyan-500/30 hover:bg-cyan-500/5 transition-all group">
+                                            <i class="fas fa-image text-slate-500 group-hover:text-cyan-400"></i>
+                                            <span class="text-[10px] font-bold">Imagem</span>
+                                        </button>
+                                        <button onclick="addBlock('button')" class="flex flex-col items-center gap-2 p-3 bg-white/5 border border-white/5 rounded-xl hover:border-cyan-500/30 hover:bg-cyan-500/5 transition-all group">
+                                            <i class="fas fa-mouse-pointer text-slate-500 group-hover:text-cyan-400"></i>
+                                            <span class="text-[10px] font-bold">Botão CTA</span>
+                                        </button>
+                                        <button onclick="addBlock('spacer')" class="flex flex-col items-center gap-2 p-3 bg-white/5 border border-white/5 rounded-xl hover:border-cyan-500/30 hover:bg-cyan-500/5 transition-all group">
+                                            <i class="fas fa-arrows-up-down text-slate-500 group-hover:text-cyan-400"></i>
+                                            <span class="text-[10px] font-bold">Espaçador</span>
+                                        </button>
+                                        <button onclick="addBlock('divider')" class="flex flex-col items-center gap-2 p-3 bg-white/5 border border-white/5 rounded-xl hover:border-cyan-500/30 hover:bg-cyan-500/5 transition-all group">
+                                            <i class="fas fa-minus text-slate-500 group-hover:text-cyan-400"></i>
+                                            <span class="text-[10px] font-bold">Divisor</span>
+                                        </button>
+                                    </div>
+                                </div>
+
+                                <!-- Accordion: Element Style (Shows only when selected) -->
+                                <div id="acc-style-container" class="space-y-4 hidden">
+                                    <div class="flex items-center justify-between cursor-pointer group" onclick="toggleAccordion('acc-style')">
+                                        <span class="text-[11px] font-bold text-cyan-400 uppercase tracking-widest tracking-widest">Estilo do Elemento</span>
+                                        <i class="fas fa-chevron-down text-[10px] transition-transform rotate-180" id="icon-acc-style"></i>
+                                    </div>
+                                    <div id="acc-style" class="space-y-5">
+                                        <div class="grid grid-cols-2 gap-3">
+                                            <div>
+                                                <label class="block text-[10px] text-slate-500 mb-1">Tamanho Fonte</label>
+                                                <input type="number" id="style-font-size" oninput="updateElStyle('fontSize', this.value + 'px')" class="w-full bg-slate-900 border border-white/10 rounded-lg px-3 py-2 text-xs text-white outline-none focus:border-cyan-500">
+                                            </div>
+                                            <div>
+                                                <label class="block text-[10px] text-slate-500 mb-1">Cor Texto</label>
+                                                <input type="color" id="style-font-color" oninput="updateElStyle('color', this.value)" class="w-full h-10 rounded-lg bg-slate-800 border-0 cursor-pointer p-0 overflow-hidden">
+                                            </div>
+                                        </div>
+                                        <div>
+                                            <label class="block text-[10px] font-bold text-slate-500 uppercase flex items-center gap-2 mb-3">
+                                                <i class="fas fa-expand text-[9px]"></i> Espaçamento (Padding px)
+                                            </label>
+                                            <div class="grid grid-cols-2 gap-3">
+                                                <div class="space-y-1">
+                                                    <span class="text-[9px] text-slate-600 uppercase font-bold">Cima</span>
+                                                    <input type="number" id="style-pt" oninput="updateElStyle('paddingTop', this.value + 'px')" class="w-full bg-slate-900 border border-white/10 rounded-lg px-2 py-1.5 text-xs text-white outline-none">
+                                                </div>
+                                                <div class="space-y-1">
+                                                    <span class="text-[9px] text-slate-600 uppercase font-bold">Baixo</span>
+                                                    <input type="number" id="style-pb" oninput="updateElStyle('paddingBottom', this.value + 'px')" class="w-full bg-slate-900 border border-white/10 rounded-lg px-2 py-1.5 text-xs text-white outline-none">
+                                                </div>
+                                                <div class="space-y-1">
+                                                    <span class="text-[9px] text-slate-600 uppercase font-bold">Esq</span>
+                                                    <input type="number" id="style-pl" oninput="updateElStyle('paddingLeft', this.value + 'px')" class="w-full bg-slate-900 border border-white/10 rounded-lg px-2 py-1.5 text-xs text-white outline-none">
+                                                </div>
+                                                <div class="space-y-1">
+                                                    <span class="text-[9px] text-slate-600 uppercase font-bold">Dir</span>
+                                                    <input type="number" id="style-pr" oninput="updateElStyle('paddingRight', this.value + 'px')" class="w-full bg-slate-900 border border-white/10 rounded-lg px-2 py-1.5 text-xs text-white outline-none">
+                                                </div>
+                                            </div>
+                                        </div>
+                                        <div class="flex gap-1 bg-slate-900 p-1 rounded-lg border border-white/5">
+                                            <button onclick="updateElStyle('textAlign', 'left')" class="flex-1 py-2 rounded-md hover:bg-white/5"><i class="fas fa-align-left text-xs"></i></button>
+                                            <button onclick="updateElStyle('textAlign', 'center')" class="flex-1 py-2 rounded-md hover:bg-white/5 text-cyan-400"><i class="fas fa-align-center text-xs"></i></button>
+                                            <button onclick="updateElStyle('textAlign', 'right')" class="flex-1 py-2 rounded-md hover:bg-white/5"><i class="fas fa-align-right text-xs"></i></button>
+                                        </div>
+                                        <button onclick="deleteSelectedEl()" class="w-full py-3 bg-rose-500/10 text-rose-400 border border-rose-500/20 rounded-xl text-[10px] font-bold uppercase hover:bg-rose-500 hover:text-white transition-all">
+                                            Remover Bloco
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Persistent HTML Area (Code Mode) -->
+                            <div id="code-area" class="hidden h-1/2 flex flex-col border-t border-white/10 bg-slate-950">
+                                <div class="bg-slate-900 p-2 flex justify-between items-center px-4">
+                                    <span class="text-[10px] font-bold text-slate-500 uppercase tracking-widest">Código HTML Fonte</span>
+                                    <button onclick="toggleEditorMode()" class="text-[10px] font-bold text-rose-400 uppercase">Fechar</button>
+                                </div>
+                                <textarea id="tpl-html" class="flex-1 w-full bg-slate-950 p-4 text-[10px] font-mono text-cyan-500 outline-none resize-none leading-relaxed" oninput="updatePreview()">${currentHtml}</textarea>
+                            </div>
+                        </div>
+
+                        <!-- Workspace -->
+                        <div class="builder-workspace flex-1 overflow-y-auto p-12 flex justify-center items-start">
+                            <div class="builder-preview-container w-[600px] min-h-full bg-white relative">
+                                <iframe id="tpl-preview" class="w-full h-full border-0 absolute inset-0"></iframe>
+                                <div id="builder-loader" class="absolute inset-0 bg-slate-900 flex items-center justify-center z-[60]">
+                                    <i class="fas fa-spinner fa-spin text-cyan-400 text-3xl"></i>
+                                </div>
+                            </div>
+                        </div>
                     </div>
                 </div>
             `;
+
+            isVisualMode = true;
             document.getElementById('modalOverlay').classList.remove('hidden');
             document.getElementById('modalOverlay').classList.add('flex');
 
-            // Wait for iframe to load before applying interactive logic
             setTimeout(() => {
-                updatePreview();
+                const iframe = document.getElementById('tpl-preview');
+                const doc = iframe.contentDocument || iframe.contentWindow.document;
+                doc.open();
+                doc.write(currentHtml);
+                doc.close();
+                document.getElementById('builder-loader').classList.add('hidden');
                 setupVisualEditor();
-            }, 100);
+            }, 500);
         }
 
-        let isVisualMode = false;
-        function toggleEditorMode() {
-            isVisualMode = !isVisualMode;
-            const btn = document.getElementById('toggle-editor');
-            const left = document.getElementById('editor-left');
+        function toggleAccordion(id) {
+            const content = document.getElementById(id);
+            const icon = document.getElementById(`icon-${id}`);
+            content.classList.toggle('hidden');
+            icon.classList.toggle('rotate-180');
+        }
 
-            if (isVisualMode) {
-                btn.innerHTML = '<i class="fas fa-code"></i> Modo Código';
-                btn.classList.add('bg-cyan-500/10');
-                left.classList.add('hidden');
-            } else {
-                btn.innerHTML = '<i class="fas fa-eye"></i> Modo Visual';
-                btn.classList.remove('bg-cyan-500/10');
-                left.classList.remove('hidden');
+        function updateBodyStyle(prop, val) {
+            const iframe = document.getElementById('tpl-preview');
+            const doc = iframe.contentDocument || iframe.contentWindow.document;
+            doc.body.style[prop] = val;
+            syncToTextarea();
+        }
+
+        function updateContainerWidth(px) {
+            const iframe = document.getElementById('tpl-preview');
+            const doc = iframe.contentDocument || iframe.contentWindow.document;
+            const container = doc.getElementById('email-container');
+            if (container) {
+                container.style.maxWidth = px + 'px';
+                document.getElementById('width-val').innerText = px + 'px';
+                document.querySelector('.builder-preview-container').style.width = px + 'px';
+                syncToTextarea();
             }
         }
 
-        let selectedElement = null;
+        function updateElStyle(prop, val) {
+            if (!selectedEl) return;
+            selectedEl.style[prop] = val;
+            syncToTextarea();
+        }
 
-        function execCmd(command, value = null) {
+        function toggleEditorMode() {
+            const codeArea = document.getElementById('code-area');
+            const btn = document.getElementById('toggle-editor');
+            codeArea.classList.toggle('hidden');
+            if (codeArea.classList.contains('hidden')) {
+                btn.innerHTML = '<i class="fas fa-eye"></i> Preview / Código';
+                btn.classList.remove('text-cyan-400');
+            } else {
+                btn.innerHTML = '<i class="fas fa-code"></i> Modo Visual';
+                btn.classList.add('text-cyan-400');
+            }
+        }
+
+        function syncToTextarea() {
             const iframe = document.getElementById('tpl-preview');
             const doc = iframe.contentDocument || iframe.contentWindow.document;
-            doc.execCommand(command, false, value);
-            // Sync back
-            document.getElementById('tpl-html').value = doc.documentElement.outerHTML;
+            // Clean up builder classes before syncing
+            const cleanHtml = doc.documentElement.outerHTML
+                .replace(/ hdt-hover/g, '')
+                .replace(/ hdt-selected/g, '')
+                .replace(/ contenteditable="true"/g, '');
+            document.getElementById('tpl-html').value = cleanHtml;
+        }
+
+        function addBlock(type) {
+            const iframe = document.getElementById('tpl-preview');
+            const doc = iframe.contentDocument || iframe.contentWindow.document;
+            const container = doc.getElementById('email-container') || doc.body;
+
+            let html = '';
+            if (type === 'heading') html = '<h2 style="color: #1a202c; margin-top: 20px; font-size: 24px;">Título do Bloco</h2>';
+            if (type === 'text') html = '<p style="color: #4a5568; line-height: 1.6; margin-top: 15px; font-size: 16px;">Novo parágrafo de texto editável. Clique aqui para alterar o conteúdo ou use o menu lateral para ajustar o estilo.</p>';
+            if (type === 'image') html = '<div style="margin-top: 20px;"><img src="https://via.placeholder.com/600x300" style="width: 100%; border-radius: 8px; display: block;"></div>';
+            if (type === 'button') html = '<center style="margin-top: 30px;"><a href="#" style="background-color: #06b6d4; color: #ffffff; padding: 15px 30px; text-decoration: none; border-radius: 50px; font-weight: bold; display: inline-block; font-size: 16px;">BOTÃO DE AÇÃO</a></center>';
+            if (type === 'spacer') html = '<div style="height: 40px; width: 100%;"></div>';
+            if (type === 'divider') html = '<div style="border-top: 1px solid #e2e8f0; margin: 30px 0; width: 100%;"></div>';
+
+            const div = doc.createElement('div');
+            div.innerHTML = html;
+            container.appendChild(div.firstElementChild);
+            syncToTextarea();
+            setupVisualEditor();
+        }
+
+        function deleteSelectedEl() {
+            if (selectedEl && confirm('Remover este bloco?')) {
+                selectedEl.remove();
+                selectedEl = null;
+                document.getElementById('acc-style-container').classList.add('hidden');
+                syncToTextarea();
+            }
         }
 
         function setupVisualEditor() {
             const iframe = document.getElementById('tpl-preview');
             const doc = iframe.contentDocument || iframe.contentWindow.document;
-            const toolbar = document.getElementById('visual-toolbar');
 
-            // Inject Highlighter Styles
-            const style = doc.createElement('style');
+            const style = doc.getElementById('builder-styles') || doc.createElement('style');
+            style.id = 'builder-styles';
             style.textContent = `
-                [contenteditable="true"] { outline: 2px dashed #06b6d4 !important; outline-offset: 4px; border-radius: 4px; }
-                .hdt-hover { outline: 2px solid rgba(6, 182, 212, 0.3) !important; cursor: pointer; }
-                .hdt-dragging { opacity: 0.5; border: 2px dashed #06b6d4 !important; }
+                .hdt-hover { outline: 2px solid rgba(6, 182, 212, 0.4) !important; outline-offset: 2px; cursor: pointer; }
+                .hdt-selected { outline: 2px solid #06b6d4 !important; outline-offset: 2px; }
             `;
-            doc.head.appendChild(style);
+            if (!doc.getElementById('builder-styles')) doc.head.appendChild(style);
 
             doc.addEventListener('mouseover', (e) => {
-                if (!isVisualMode) return;
                 if (e.target.tagName !== 'HTML' && e.target.tagName !== 'BODY') {
                     e.target.classList.add('hdt-hover');
                 }
@@ -920,79 +1146,47 @@
             });
 
             doc.addEventListener('click', (e) => {
-                if (!isVisualMode) return;
-                if (e.target.tagName !== 'HTML' && e.target.tagName !== 'BODY') {
-                    e.preventDefault();
-                    if (selectedElement) selectedElement.contentEditable = "false";
-
-                    selectedElement = e.target;
-                    selectedElement.contentEditable = "true";
-                    selectedElement.focus();
-
-                    toolbar.classList.remove('hidden');
-                } else {
-                    toolbar.classList.add('hidden');
-                }
-            });
-
-            // Drag & Drop for reordering
-            let draggedEl = null;
-
-            doc.addEventListener('dragstart', (e) => {
-                if (!isVisualMode) return;
-                draggedEl = e.target;
-                e.target.classList.add('hdt-dragging');
-                e.dataTransfer.setData('text/plain', ''); // Required for FF
-            });
-
-            doc.addEventListener('dragover', (e) => {
-                if (!isVisualMode) return;
                 e.preventDefault();
                 const target = e.target;
-                if (target && target !== draggedEl && target.tagName !== 'HTML' && target.tagName !== 'BODY') {
-                    const rect = target.getBoundingClientRect();
-                    const midpoint = rect.top + rect.height / 2;
-                    if (e.clientY < midpoint) {
-                        target.parentNode.insertBefore(draggedEl, target);
-                    } else {
-                        target.parentNode.insertBefore(draggedEl, target.nextSibling);
+                if (target.tagName !== 'HTML' && target.tagName !== 'BODY') {
+                    if (selectedEl) {
+                        selectedEl.classList.remove('hdt-selected');
+                        selectedEl.contentEditable = "false";
                     }
+
+                    selectedEl = target;
+                    selectedEl.classList.add('hdt-selected');
+                    selectedEl.contentEditable = "true";
+
+                    document.getElementById('acc-style-container').classList.remove('hidden');
+                    syncSidebarWithEl(selectedEl);
+                } else {
+                    if (selectedEl) {
+                        selectedEl.classList.remove('hdt-selected');
+                        selectedEl.contentEditable = "false";
+                    }
+                    selectedEl = null;
+                    document.getElementById('acc-style-container').classList.add('hidden');
                 }
             });
 
-            doc.addEventListener('dragend', (e) => {
-                if (draggedEl) {
-                    draggedEl.classList.remove('hdt-dragging');
-                    draggedEl = null;
-                    // Sync back to textarea
-                    document.getElementById('tpl-html').value = doc.documentElement.outerHTML;
-                }
-            });
+            doc.addEventListener('input', () => syncToTextarea());
+        }
 
-            // Make elements draggable if in visual mode
-            function updateDraggability() {
-                const all = doc.querySelectorAll('body *');
-                all.forEach(el => {
-                    if (el.tagName !== 'HTML' && el.tagName !== 'BODY') {
-                        el.draggable = isVisualMode;
-                    }
-                });
+        function syncSidebarWithEl(el) {
+            const style = window.getComputedStyle(el);
+            document.getElementById('style-font-size').value = parseInt(style.fontSize) || 16;
+
+            const rgb = style.color.match(/\\d+/g);
+            if (rgb) {
+                const hex = "#" + rgb.map(x => parseInt(x).toString(16).padStart(2, '0')).join('');
+                document.getElementById('style-font-color').value = hex;
             }
 
-            // Sync on input
-            doc.addEventListener('input', () => {
-                const html = doc.documentElement.outerHTML;
-                document.getElementById('tpl-html').value = html;
-            });
-
-            // Monitor mode changes to update cursors/draggability
-            const observer = new MutationObserver(() => {
-                updateDraggability();
-                if (!isVisualMode) toolbar.classList.add('hidden');
-            });
-            observer.observe(document.getElementById('toggle-editor'), { attributes: true, childList: true, characterData: true });
-
-            updateDraggability();
+            document.getElementById('style-pt').value = parseInt(style.paddingTop) || 0;
+            document.getElementById('style-pb').value = parseInt(style.paddingBottom) || 0;
+            document.getElementById('style-pl').value = parseInt(style.paddingLeft) || 0;
+            document.getElementById('style-pr').value = parseInt(style.paddingRight) || 0;
         }
 
         function updatePreview() {
@@ -1000,8 +1194,44 @@
             const iframe = document.getElementById('tpl-preview');
             const doc = iframe.contentDocument || iframe.contentWindow.document;
             doc.open();
-            doc.write(html.replace(/{{name}}/gi, 'Cliente Exemplo'));
+            doc.write(html);
             doc.close();
+            setupVisualEditor();
+        }
+
+        function closeModal() {
+            const modal = document.getElementById('modalContent');
+            const overlay = document.getElementById('modalOverlay');
+            modal.classList.remove('modal-full');
+            modal.classList.add('p-8', 'max-w-4xl', 'max-h-[90vh]', 'rounded-3xl', 'overflow-y-auto');
+            overlay.classList.remove('p-0');
+            overlay.classList.add('hidden');
+            overlay.classList.remove('flex');
+            selectedEl = null;
+        }
+
+        async function saveTemplate(id = '') {
+            const data = {
+                name: document.getElementById('tpl-name').value,
+                subject: document.getElementById('tpl-subject').value,
+                htmlContent: document.getElementById('tpl-html').value
+            };
+
+            if (!data.name || !data.htmlContent) return showToast('Preencha nome e conteúdo', 'error');
+
+            const url = id ? `/api/marketing/templates/${id}` : '/api/marketing/templates';
+            const method = id ? 'PUT' : 'POST';
+
+            try {
+                await fetch(url, {
+                    method,
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(data)
+                });
+                showToast('Modelo salvo!');
+                closeModal();
+                loadTemplates();
+            } catch (err) { showToast('Erro ao salvar', 'error'); }
         }
 
         function copyTemplateHtml(html) {
@@ -1039,23 +1269,6 @@
             }
         }
 
-        async function saveTemplate(id) {
-            const data = {
-                id: id || undefined,
-                name: document.getElementById('tpl-name').value,
-                subject: document.getElementById('tpl-subject').value,
-                htmlContent: document.getElementById('tpl-html').value
-            };
-            await fetch('/api/marketing/templates', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(data)
-            });
-            showToast('Modelo salvo!');
-            closeModal();
-            loadTemplates();
-        }
-
         async function uploadTemplate(input) {
             const file = input.files[0];
             if (!file) return;
@@ -1064,9 +1277,8 @@
             showToast('Enviando...', 'info');
             try {
                 const res = await fetch('/api/marketing/templates/upload', { method: 'POST', body: formData });
-                const result = await res.json();
-                if (result.id) {
-                    showToast('Modelo carregado!');
+                if (res.ok) {
+                    showToast('Upload concluído!');
                     loadTemplates();
                 } else {
                     showToast('Erro no upload', 'error');
