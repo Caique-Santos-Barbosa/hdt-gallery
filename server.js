@@ -1,4 +1,4 @@
-// HDT Conecte Server v1.0.1
+// HDT Conecte Server v1.0.2 - Update: 2026-02-11 23:12
 const express = require('express');
 const multer = require('multer');
 const path = require('path');
