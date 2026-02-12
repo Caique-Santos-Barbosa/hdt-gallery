@@ -530,8 +530,8 @@ async function runCampaignTask(campaignId) {
           }
         }
 
-        // Wait a small interval between batches (e.g., 1s as recommended for rate limits)
-        await new Promise(r => setTimeout(r, 1000));
+        // Wait interval between batches
+        await new Promise(r => setTimeout(r, (campaign.interval || 1) * 1000));
       }
     } else {
       // SMTP logic (Sequential)
