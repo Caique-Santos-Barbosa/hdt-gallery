@@ -148,6 +148,12 @@ const storage = {
             campaign.id = Date.now() + Math.random().toString(36).substr(2, 9);
             campaign.createdAt = new Date();
             campaign.sentCount = 0;
+            campaign.deliveredCount = 0;
+            campaign.openCount = 0;
+            campaign.clickCount = 0;
+            campaign.bounceCount = 0;
+            campaign.unsubscribeCount = 0;
+            campaign.complaintCount = 0;
             campaign.failedCount = 0;
             db.campaigns.push(campaign);
         }
@@ -165,6 +171,11 @@ const storage = {
         log.id = Date.now() + Math.random().toString(36).substr(2, 9);
         log.sentAt = new Date();
         log.openedAt = null;
+        log.deliveredAt = null;
+        log.bouncedAt = null;
+        log.complainedAt = null;
+        log.unsubscribedAt = null;
+        log.providerId = log.providerId || null;
         log.clicks = [];
         db.logs.push(log);
 
@@ -284,6 +295,70 @@ const storage = {
             }
         });
         return Array.from(tags).sort();
+    },
+    async getLogByProviderId(providerId) {
+        const db = await getDb();
+        return db.logs.find(l => l.providerId === providerId);
+    },
+    async processWebhookEvent(providerId, eventType, data = {}) {
+        const db = await getDb();
+        const logIndex = db.logs.findIndex(l => l.providerId === providerId);
+        if (logIndex === -1) return null;
+
+        const log = db.logs[logIndex];
+        const campaignId = log.campaignId;
+        const campIndex = db.campaigns.findIndex(c => c.id === campaignId);
+        if (campIndex === -1) return null;
+
+        const campaign = db.campaigns[campIndex];
+        const now = new Date();
+
+        switch (eventType) {
+            case 'email.delivered':
+                if (!log.deliveredAt) {
+                    log.deliveredAt = now;
+                    campaign.deliveredCount = (campaign.deliveredCount || 0) + 1;
+                }
+                break;
+            case 'email.opened':
+                if (!log.openedAt) {
+                    log.openedAt = now;
+                    campaign.openCount = (campaign.openCount || 0) + 1;
+                }
+                break;
+            case 'email.clicked':
+                // Clicks can happen multiple times, but we only count the first for the campaign metric
+                const isFirstClick = !log.lastClickedAt;
+                log.lastClickedAt = now;
+                if (!log.clicks) log.clicks = [];
+                log.clicks.push({ at: now, url: data.url });
+                if (isFirstClick) {
+                    campaign.clickCount = (campaign.clickCount || 0) + 1;
+                }
+                break;
+            case 'email.bounced':
+                if (!log.bouncedAt) {
+                    log.bouncedAt = now;
+                    log.status = 'bounced';
+                    campaign.bounceCount = (campaign.bounceCount || 0) + 1;
+                }
+                break;
+            case 'email.complained':
+                if (!log.complainedAt) {
+                    log.complainedAt = now;
+                    campaign.complaintCount = (campaign.complaintCount || 0) + 1;
+                }
+                break;
+            case 'email.unsubscribed':
+                if (!log.unsubscribedAt) {
+                    log.unsubscribedAt = now;
+                    campaign.unsubscribeCount = (campaign.unsubscribeCount || 0) + 1;
+                }
+                break;
+        }
+
+        await saveDb(db);
+        return { log, campaign };
     },
     async clearCampaignLogs(campaignId) {
         const db = await getDb();

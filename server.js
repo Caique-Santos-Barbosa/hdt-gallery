@@ -478,8 +478,39 @@ async function runCampaignTask(campaignId) {
             const apiReq = https.request(options, (apiRes) => {
               let resBody = '';
               apiRes.on('data', d => resBody += d);
-              apiRes.on('end', () => {
-                if (apiRes.statusCode === 200 || apiRes.statusCode === 201) resolve();
+              apiRes.on('end', async () => {
+                if (apiRes.statusCode === 200 || apiRes.statusCode === 201) {
+                  try {
+                    const responseData = JSON.parse(resBody);
+                    if (responseData.data && Array.isArray(responseData.data)) {
+                      // Update logs with providerId (order is preserved in Resend Batch)
+                      for (let i = 0; i < responseData.data.length; i++) {
+                        const resendItem = responseData.data[i];
+                        const localItem = emailBatch[i];
+                        if (resendItem.id && localItem.metadata.logId) {
+                          await storage.addLog({
+                            id: localItem.metadata.logId,
+                            campaignId,
+                            leadId: localItem.metadata.leadId,
+                            email: localItem.to,
+                            status: 'sent',
+                            providerId: resendItem.id
+                          });
+                        }
+                      }
+                      resolve();
+                    } else {
+                      // Fallback if data is missing
+                      for (const e of emailBatch) {
+                        await storage.addLog({ id: e.metadata.logId, campaignId, leadId: e.metadata.leadId, email: e.to, status: 'sent' });
+                      }
+                      resolve();
+                    }
+                  } catch (e) {
+                    console.error('[Worker] Error parsing Resend response:', e);
+                    resolve(); // Proceed anyway
+                  }
+                }
                 else reject(new Error(`Resend Batch Error ${apiRes.statusCode}: ${resBody}`));
               });
             });
@@ -488,10 +519,7 @@ async function runCampaignTask(campaignId) {
             apiReq.end();
           });
 
-          // Log successes
-          for (const e of emailBatch) {
-            await storage.addLog({ id: e.metadata.logId, campaignId, leadId: e.metadata.leadId, email: e.to, status: 'sent' });
-          }
+          // Logs are now handled inside the resolve block above with providerId
           console.log(`[Worker] Campaign ${campaignId}: Sent batch of ${emailBatch.length} emails`);
         } catch (err) {
           console.error(`[Worker] Campaign ${campaignId}: Batch failed:`, err.message);
@@ -598,9 +626,13 @@ app.post('/api/marketing/campaigns/:id/restart', async (req, res) => {
 
     // Reset progress
     campaign.sentCount = 0;
-    campaign.failedCount = 0;
+    campaign.deliveredCount = 0;
     campaign.openCount = 0;
     campaign.clickCount = 0;
+    campaign.bounceCount = 0;
+    campaign.unsubscribeCount = 0;
+    campaign.complaintCount = 0;
+    campaign.failedCount = 0;
     campaign.status = 'paused'; // Set to paused first to ensure worker doesn't pick it up mid-reset
     await storage.saveCampaign(campaign);
 
@@ -616,8 +648,37 @@ app.post('/api/marketing/campaigns/:id/restart', async (req, res) => {
   }
 });
 
-// App Start - Catch-all route for SPA
-app.get(/.*/, (req, res) => {
+// --- WEBHOOKS ---
+
+app.post('/api/webhooks/resend', async (req, res) => {
+  const event = req.body;
+
+  // Resend webhook format: { created_at, data: { ... }, type: "email.delivered" }
+  // data contains email_id
+  const eventType = event.type;
+  const emailId = event.data?.email_id || event.data?.id;
+
+  if (!emailId || !eventType) {
+    return res.status(400).send('Invalid webhook data');
+  }
+
+  console.log(`[Webhook] Resend Event: ${eventType} for ${emailId}`);
+
+  try {
+    const result = await storage.processWebhookEvent(emailId, eventType, event.data);
+    if (result) {
+      res.json({ success: true, campaign: result.campaign.id });
+    } else {
+      res.status(404).json({ error: 'Log not found for this providerId' });
+    }
+  } catch (err) {
+    console.error('[Webhook] Error:', err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Serve frontend for all other routes
+app.get('*', (req, res) => {
   res.sendFile(path.join(__dirname, 'public', 'index.html'));
 });
 
@@ -629,5 +690,6 @@ app.use((err, req, res, next) => {
 
 (async () => {
   await initDb();
+  const PORT = 80;
   app.listen(PORT, () => console.log(`HDT Conecte running on port ${PORT}`));
 })();
