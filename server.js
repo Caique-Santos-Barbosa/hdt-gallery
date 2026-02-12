@@ -382,8 +382,7 @@ async function runCampaignTask(campaignId) {
 
       // Create log first to get ID for tracking
       const logId = Date.now() + Math.random().toString(36).substr(2, 9);
-      const host = req ? `${req.protocol}://${req.get('host')}` : ''; // We need the host for tracking links
-      // Since it's a background worker, req might not be available. 
+      // Since it's a background worker, req is not available. 
       // We should probably store the BASE_URL in config.
       const baseUrl = config.baseUrl || 'http://localhost:3000';
 
