@@ -118,8 +118,9 @@ app.post('/api/marketing/config', async (req, res) => res.json(await storage.upd
 app.post('/api/marketing/config/test', async (req, res) => {
   const config = req.body;
   if (config.method === 'resend') {
+    const fromEmail = config.resendFromEmail || `no-reply@${config.resendDomain}`;
     const postData = JSON.stringify({
-      from: `${config.senderName} <contact@${config.resendDomain}>`,
+      from: `${config.senderName} <${fromEmail}>`,
       to: config.senderEmail,
       subject: 'Teste de Conexão Resend',
       html: '<p>Sua configuração do Resend está funcionando corretamente!</p>'
@@ -445,9 +446,9 @@ async function runCampaignTask(campaignId) {
             }
             return match;
           });
-
+          const fromEmail = config.resendFromEmail || `no-reply@${config.resendDomain}`;
           return {
-            from: `${campaign.senderName || config.senderName} <contact@${config.resendDomain}>`,
+            from: `${campaign.senderName || config.senderName} <${fromEmail}>`,
             to: lead.email,
             subject: campaign.subject,
             html: html,
