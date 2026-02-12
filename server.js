@@ -260,6 +260,14 @@ app.delete('/api/marketing/templates/:id', async (req, res) => {
   await storage.deleteTemplate(req.params.id);
   res.json({ success: true });
 });
+app.post('/api/marketing/templates/:id/clone', async (req, res) => {
+  try {
+    const copy = await storage.cloneTemplate(req.params.id);
+    res.json(copy);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
 
 // Campaigns
 app.get('/api/marketing/campaigns', async (req, res) => res.json(await storage.getCampaigns()));

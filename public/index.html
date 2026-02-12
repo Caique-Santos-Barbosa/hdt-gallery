@@ -1272,6 +1272,9 @@
                                 <div class="flex justify-between items-start">
                                     <h4 class="text-lg font-bold text-white leading-tight line-clamp-1">${t.name}</h4>
                                     <div class="flex gap-1">
+                                        <button onclick="cloneTemplate('${t.id}')" class="p-2 text-slate-400 hover:text-cyan-400 transition-all" title="Clonar Modelo">
+                                            <i class="fas fa-clone"></i>
+                                        </button>
                                         <button onclick='openTemplateEditor(${JSON.stringify(t).replace(/'/g, "&apos;")})' class="p-2 text-slate-400 hover:text-cyan-400 transition-all">
                                             <i class="fas fa-edit"></i>
                                         </button>
@@ -1320,19 +1323,39 @@
 <!DOCTYPE html>
 <html>
 <head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <!--[if mso]>
+    <xml>
+      <o:OfficeDocumentSettings>
+        <o:AllowPNG/>
+        <o:PixelsPerInch>96</o:PixelsPerInch>
+      </o:OfficeDocumentSettings>
+    </xml>
+    <![endif]-->
     <style>
-        body { background-color: #f4f4f5; font-family: Arial, sans-serif; margin: 0; padding: 40px; }
-        .email-body { background-color: #ffffff; max-width: 600px; width: 100%; margin: 0 auto; padding: 20px; border-radius: 8px; box-shadow: 0 4px 6px rgba(0,0,0,0.05); }
-        h1 { color: #1a202c; }
-        p { color: #4a5568; line-height: 1.6; }
+        body { background-color: #f4f4f5; font-family: Arial, sans-serif; margin: 0; padding: 0; }
+        .ExternalClass { width: 100%; }
+        .ExternalClass, .ExternalClass p, .ExternalClass span, .ExternalClass font, .ExternalClass td, .ExternalClass div { line-height: 100%; }
+        table { border-collapse: collapse; mso-table-lspace: 0pt; mso-table-rspace: 0pt; }
     </style>
 </head>
-<body>
+<body style="background-color: #f4f4f5; margin: 0; padding: 40px;">
     <center>
-        <div id="email-container" class="email-body">
-            <h1 style="color: #1a202c;">Olá, {{name}}!</h1>
-            <p style="color: #4a5568;">Este é o seu novo modelo de email pronto para ser editado. Use o menu lateral para customizar.</p>
+        <!--[if mso]>
+        <table align="center" border="0" cellpadding="0" cellspacing="0" width="600">
+        <tr>
+        <td align="center" valign="top" width="600">
+        <![endif]-->
+        <div id="email-container" class="email-body" style="background-color: #ffffff; max-width: 600px; width: 100%; margin: 0 auto; padding: 20px; border-radius: 8px; box-shadow: 0 4px 6px rgba(0,0,0,0.05);">
+            <h1 style="color: #1a202c; font-family: Arial, sans-serif;">Olá, {{name}}!</h1>
+            <p style="color: #4a5568; font-family: Arial, sans-serif; line-height: 1.6;">Este é o seu novo modelo de email pronto para ser editado. Use o menu lateral para customizar.</p>
         </div>
+        <!--[if mso]>
+        </td>
+        </tr>
+        </table>
+        <![endif]-->
     </center>
 </body>
 </html>`.trim();
@@ -1391,12 +1414,12 @@
                                         </div>
                                         <div>
                                             <label class="block text-[10px] text-slate-500 mb-2">Fundo do Conteúdo (Container)</label>
-                                            <div class="space-y-2">
+                                            <div class="space-y-3">
                                                 <div class="flex items-center gap-2">
-                                                    <input type="color" oninput="updateContainerStyle('backgroundColor', this.value)" class="w-8 h-8 rounded-lg bg-slate-800 border-0 cursor-pointer p-0 overflow-hidden">
-                                                    <input type="text" placeholder="Cor de Fundo" class="flex-1 bg-slate-900/50 border border-white/10 rounded-lg px-3 py-2 text-xs text-white outline-none" oninput="updateContainerStyle('backgroundColor', this.value)">
+                                                    <input type="color" id="style-container-bg" oninput="updateContainerStyle('backgroundColor', this.value)" class="w-8 h-8 rounded-lg bg-slate-800 border-0 cursor-pointer p-0 overflow-hidden">
+                                                    <input type="text" id="style-container-bg-hex" placeholder="Cor de Fundo" class="flex-1 bg-slate-900/50 border border-white/10 rounded-lg px-3 py-2 text-xs text-white outline-none" oninput="updateContainerStyle('backgroundColor', this.value)">
                                                 </div>
-                                                <input type="text" placeholder="URL da Imagem de Fundo" class="w-full bg-slate-900/50 border border-white/10 rounded-lg px-3 py-2 text-xs text-white outline-none focus:border-cyan-500" oninput="updateContainerStyle('backgroundImage', 'url(' + this.value + ')')">
+                                                <div id="bg-gallery-picker"></div>
                                             </div>
                                         </div>
                                         <div>
@@ -1468,7 +1491,7 @@
                                         <div id="image-style-controls" class="space-y-5 hidden">
                                             <div>
                                                 <label class="block text-[10px] text-slate-500 mb-1">Link/URL da Imagem</label>
-                                                <input type="text" id="style-img-src" oninput="updateImageUrl(this.value)" class="w-full bg-slate-900 border border-white/10 rounded-lg px-3 py-2 text-xs text-white outline-none focus:border-cyan-500">
+                                                <div id="img-gallery-picker"></div>
                                             </div>
                                             <div class="grid grid-cols-2 gap-3">
                                                 <div>
@@ -1580,6 +1603,16 @@
                 doc.close();
                 document.getElementById('builder-loader').classList.add('hidden');
                 setupVisualEditor();
+
+                // Initialize Gallery Pickers
+                const container = doc.getElementById('email-container');
+                const initialBg = container ? (container.style.backgroundImage || '').replace(/url\(["']?(.*?)["']?\)/, '$1') : '';
+                initImagePicker('bg-gallery-picker', initialBg, (url) => {
+                    updateContainerStyle('backgroundImage', url ? `url(${url})` : 'none');
+                });
+                initImagePicker('img-gallery-picker', '', (url) => {
+                    updateImageUrl(url);
+                });
             }, 500);
         }
 
@@ -1607,6 +1640,13 @@
                     container.style.backgroundPosition = 'center';
                 }
                 container.style[prop] = val;
+
+                // If it's backgroundColor, also try to update any wrapping tables for outlook
+                if (prop === 'backgroundColor') {
+                    const table = container.closest('table');
+                    if (table) table.style.backgroundColor = val;
+                }
+
                 syncToTextarea();
             }
         }
@@ -1616,16 +1656,39 @@
             const doc = iframe.contentDocument || iframe.contentWindow.document;
             const container = doc.getElementById('email-container');
             if (container) {
-                container.style.maxWidth = px + 'px';
-                document.getElementById('width-val').innerText = px + 'px';
-                document.querySelector('.builder-preview-container').style.width = px + 'px';
+                const widthSuffix = px + 'px';
+                container.style.maxWidth = widthSuffix;
+                container.style.width = '100%';
+
+                // Update MSO tables if present
+                const outerTable = container.closest('table');
+                if (outerTable) {
+                    outerTable.width = px; // attribute for outlook
+                    outerTable.style.width = widthSuffix; // style for others
+                    // Target the TD as well
+                    const td = outerTable.querySelector('td');
+                    if (td) td.width = px;
+                }
+
+                document.getElementById('width-val').innerText = widthSuffix;
+                const previewContainer = document.querySelector('.builder-preview-container');
+                if (previewContainer) previewContainer.style.width = widthSuffix;
+
                 syncToTextarea();
             }
         }
 
         function updateElStyle(prop, val) {
             if (!selectedEl) return;
+
+            // Ensure we are applying to the target element
             selectedEl.style[prop] = val;
+
+            // Special handling for font size on nested elements if needed
+            if (prop === 'fontSize') {
+                selectedEl.setAttribute('style', selectedEl.getAttribute('style') + `; font-size: ${val} !important;`);
+            }
+
             syncToTextarea();
         }
 
@@ -1689,8 +1752,9 @@
         function deleteSelectedEl() {
             if (selectedEl && confirm('Remover este bloco?')) {
                 selectedEl.remove();
-                selectedEl = null;
+                // Reset styles sidebar
                 document.getElementById('acc-style-container').classList.add('hidden');
+                selectedEl = null;
                 syncToTextarea();
             }
         }
@@ -1888,14 +1952,30 @@
                 } else {
                     showToast('Erro no upload', 'error');
                 }
-            } catch (err) { showToast('Erro no servidor', 'error'); }
+            } catch (err) {
+                showToast('Erro no servidor', 'error');
+            }
             input.value = '';
         }
 
         async function deleteTemplate(id) {
-            if (!confirm('Remover modelo?')) return;
+            if (!confirm('Deseja realmente excluir este modelo?')) return;
             await fetch(`/api/marketing/templates/${id}`, { method: 'DELETE' });
             loadTemplates();
+        }
+
+        async function cloneTemplate(id) {
+            try {
+                const res = await fetch(`/api/marketing/templates/${id}/clone`, { method: 'POST' });
+                if (res.ok) {
+                    showToast('Modelo clonado com sucesso!');
+                    loadTemplates();
+                } else {
+                    showToast('Erro ao clonar modelo', 'error');
+                }
+            } catch (err) {
+                showToast('Erro no servidor', 'error');
+            }
         }
 
         // --- Campaigns ---
@@ -2611,6 +2691,124 @@
             });
 
             render();
+        }
+
+        async function initImagePicker(containerId, initialValue = '', onChange = null) {
+            const container = document.getElementById(containerId);
+            let allImages = [];
+            let currentUrl = initialValue;
+
+            async function refreshImages() {
+                try {
+                    allImages = await (await fetch('/api/images')).json();
+                } catch (err) { allImages = []; }
+            }
+
+            async function render() {
+                await refreshImages();
+                container.innerHTML = `
+                    <div class="relative group/picker">
+                        <div class="flex items-center gap-2">
+                             <div class="w-9 h-9 rounded-lg bg-slate-900 border border-white/10 overflow-hidden shrink-0 flex items-center justify-center bg-cover bg-center" style="background-image: url('${currentUrl}')">
+                                ${!currentUrl ? '<i class="fas fa-image text-slate-700 text-xs"></i>' : ''}
+                             </div>
+                             <div class="flex-1 relative">
+                                <input type="text" value="${currentUrl}" placeholder="URL ou Galeria..." 
+                                    class="w-full bg-slate-900 border border-white/10 rounded-lg px-3 py-2 text-[10px] text-white outline-none focus:border-cyan-500 transition-all font-mono"
+                                    onfocus="showImageDropdown('${containerId}')"
+                                    oninput="handleImageInput('${containerId}', this.value)">
+                                <div id="${containerId}-dropdown" class="absolute left-0 right-0 mt-2 bg-slate-900 border border-white/10 rounded-xl shadow-2xl z-[100] hidden max-h-64 overflow-y-auto p-2">
+                                     <div class="flex items-center gap-2 p-2 border-b border-white/5 mb-2 sticky top-0 bg-slate-900 z-10">
+                                        <i class="fas fa-search text-slate-500 text-[10px]"></i>
+                                        <input type="text" placeholder="Filtrar galeria..." class="flex-1 bg-transparent border-0 outline-none text-[10px] text-white" oninput="filterImageDropdown('${containerId}', this.value)">
+                                        <button onclick="triggerImagePickerUpload('${containerId}')" class="px-2 py-1 bg-cyan-500/10 text-cyan-400 rounded-md text-[9px] font-bold border border-cyan-500/20 hover:bg-cyan-500 hover:text-white transition-all">
+                                            <i class="fas fa-upload mr-1"></i>
+                                        </button>
+                                     </div>
+                                     <div id="${containerId}-list" class="grid grid-cols-4 gap-2">
+                                        ${allImages.map(img => `
+                                            <button onclick="selectImageFromPicker('${containerId}', '${img.url}')" class="aspect-square rounded-lg border border-white/5 overflow-hidden hover:border-cyan-500 transition-all group/img">
+                                                <img src="${img.url}" class="w-full h-full object-cover group-hover/img:scale-110 transition-transform">
+                                            </button>
+                                        `).join('')}
+                                     </div>
+                                </div>
+                             </div>
+                        </div>
+                        <input type="file" id="${containerId}-file" class="hidden" accept="image/*" onchange="handleImagePickerUpload(event, '${containerId}')">
+                    </div>
+                `;
+            }
+
+            window.showImageDropdown = (cid) => {
+                // Hide other dropdowns
+                document.querySelectorAll('[id$="-dropdown"]').forEach(d => d.classList.add('hidden'));
+                const drop = document.getElementById(`${cid}-dropdown`);
+                if (drop) drop.classList.remove('hidden');
+            };
+
+            window.filterImageDropdown = (cid, val) => {
+                const list = document.getElementById(`${cid}-list`);
+                const buttons = list.querySelectorAll('button');
+                buttons.forEach(b => {
+                    const img = b.querySelector('img');
+                    if (img) {
+                        const src = img.src.toLowerCase();
+                        b.style.display = src.includes(val.toLowerCase()) ? 'block' : 'none';
+                    }
+                });
+            };
+
+            window.selectImageFromPicker = (cid, url) => {
+                currentUrl = url;
+                const input = document.querySelector(`#${cid} input[type="text"]`);
+                if (input) input.value = url;
+                document.getElementById(`${cid}-dropdown`).classList.add('hidden');
+                if (onChange) onChange(url);
+                render(); // Refresh preview
+            };
+
+            window.handleImageInput = (cid, url) => {
+                currentUrl = url;
+                if (onChange) onChange(url);
+                const preview = document.querySelector(`#${cid} .w-9.h-9`);
+                if (preview) {
+                    preview.style.backgroundImage = url ? `url(${url})` : 'none';
+                    preview.innerHTML = url ? '' : '<i class="fas fa-image text-slate-700 text-xs"></i>';
+                }
+            };
+
+            window.triggerImagePickerUpload = (cid) => {
+                document.getElementById(`${cid}-file`).click();
+            };
+
+            window.handleImagePickerUpload = async (e, cid) => {
+                const file = e.target.files[0];
+                if (!file) return;
+                const formData = new FormData();
+                formData.append('image', file);
+                showToast('Enviando...', 'info');
+                try {
+                    const res = await fetch('/api/upload', { method: 'POST', body: formData });
+                    const result = await res.json();
+                    if (result.success) {
+                        showToast('Upload concluído!');
+                        selectImageFromPicker(cid, result.url);
+                    }
+                } catch (err) { showToast('Erro no upload', 'error'); }
+            };
+
+            // Global click to close
+            if (!window.imagePickerClickInit) {
+                window.addEventListener('click', (e) => {
+                    if (!e.target.closest('[id$="-picker"]')) {
+                        document.querySelectorAll('[id$="-dropdown"]').forEach(d => d.classList.add('hidden'));
+                    }
+                });
+                window.imagePickerClickInit = true;
+            }
+
+            await render();
         }
         function closeModal() {
             document.getElementById('modalOverlay').classList.add('hidden');

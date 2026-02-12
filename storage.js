@@ -186,6 +186,20 @@ const storage = {
         db.templates = db.templates.filter(t => t.id !== id);
         await saveDb(db);
     },
+    async cloneTemplate(id) {
+        const db = await getDb();
+        const source = db.templates.find(t => t.id === id);
+        if (!source) throw new Error('Template not found');
+
+        const copy = JSON.parse(JSON.stringify(source));
+        copy.id = Date.now() + Math.random().toString(36).substr(2, 9);
+        copy.name = `${copy.name} (Cópia)`;
+        copy.createdAt = new Date();
+
+        db.templates.push(copy);
+        await saveDb(db);
+        return copy;
+    },
     async getCampaigns() {
         const db = await getDb();
         return db.campaigns || [];
