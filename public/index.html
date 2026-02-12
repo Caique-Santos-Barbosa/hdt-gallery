@@ -3255,10 +3255,13 @@
                             <div class="p-5 space-y-6">
                                 <!-- Section: Página -->
                                 <div id="f-section-page" class="space-y-4 transition-all duration-300">
-                                    <div class="flex items-center gap-2 text-[10px] font-bold text-slate-500 uppercase tracking-widest">
-                                        <i class="fas fa-desktop text-cyan-400"></i> Página
-                                    </div>
-                                    <div class="space-y-3">
+                                    <button onclick="toggleFormAccordion('f-section-page')" class="w-full flex items-center justify-between text-[10px] font-bold text-slate-500 uppercase tracking-widest hover:text-white transition-all py-1 group">
+                                        <div class="flex items-center gap-2">
+                                            <i class="fas fa-desktop text-cyan-400"></i> Página
+                                        </div>
+                                        <i class="fas fa-chevron-down text-[8px] transition-transform duration-300"></i>
+                                    </button>
+                                    <div id="f-content-f-section-page" class="space-y-3 hidden overflow-hidden pb-4">
                                         <div>
                                             <label class="block text-[10px] text-slate-500 mb-1">Cor de Fundo</label>
                                             <div class="flex items-center gap-2">
@@ -3285,11 +3288,14 @@
                                 </div>
 
                                 <!-- Section: Cabeçalho -->
-                                <div id="f-section-header" class="space-y-4 transition-all duration-300">
-                                    <div class="flex items-center gap-2 text-[10px] font-bold text-slate-500 uppercase tracking-widest pt-2 border-t border-white/5">
-                                        <i class="fas fa-heading text-cyan-400"></i> Cabeçalho
-                                    </div>
-                                    <div class="space-y-3">
+                                <div id="f-section-header" class="space-y-4 transition-all duration-300 border-t border-white/5 pt-2">
+                                    <button onclick="toggleFormAccordion('f-section-header')" class="w-full flex items-center justify-between text-[10px] font-bold text-slate-500 uppercase tracking-widest hover:text-white transition-all py-1 group">
+                                        <div class="flex items-center gap-2">
+                                            <i class="fas fa-heading text-cyan-400"></i> Cabeçalho
+                                        </div>
+                                        <i class="fas fa-chevron-down text-[8px] transition-transform duration-300"></i>
+                                    </button>
+                                    <div id="f-content-f-section-header" class="space-y-3 hidden overflow-hidden pb-4">
                                         <div>
                                             <label class="block text-[10px] text-slate-500 mb-1">Logo</label>
                                             <button id="f-logo-picker" class="w-full py-2 bg-white/5 border border-white/10 border-dashed rounded-lg text-[10px] font-bold hover:bg-white/10 transition-all">
@@ -3318,11 +3324,14 @@
                                 </div>
 
                                 <!-- Section: Título e Subtítulo -->
-                                <div id="f-section-title" class="space-y-4 transition-all duration-300">
-                                    <div class="flex items-center gap-2 text-[10px] font-bold text-slate-500 uppercase tracking-widest pt-2 border-t border-white/5">
-                                        <i class="fas fa-font text-cyan-400"></i> Título e Subtítulo
-                                    </div>
-                                    <div class="space-y-3">
+                                <div id="f-section-title" class="space-y-4 transition-all duration-300 border-t border-white/5 pt-2">
+                                    <button onclick="toggleFormAccordion('f-section-title')" class="w-full flex items-center justify-between text-[10px] font-bold text-slate-500 uppercase tracking-widest hover:text-white transition-all py-1 group">
+                                        <div class="flex items-center gap-2">
+                                            <i class="fas fa-font text-cyan-400"></i> Título e Subtítulo
+                                        </div>
+                                        <i class="fas fa-chevron-down text-[8px] transition-transform duration-300"></i>
+                                    </button>
+                                    <div id="f-content-f-section-title" class="space-y-3 hidden overflow-hidden pb-4">
                                         <div>
                                             <label class="block text-[10px] text-slate-500 mb-1">Texto do Título (vazio = usa o título do evento)</label>
                                             <input type="text" value="${editingForm.styles.titleText}" placeholder="${editingForm.eventTitle}" oninput="updateFormLive('titleText', this.value)" class="w-full bg-slate-900 border border-white/10 rounded-lg px-3 py-1.5 text-xs text-white outline-none">
@@ -3363,11 +3372,14 @@
                                 </div>
 
                                 <!-- Section: Formulário -->
-                                <div id="f-section-form" class="space-y-4 transition-all duration-300">
-                                    <div class="flex items-center gap-2 text-[10px] font-bold text-slate-500 uppercase tracking-widest pt-2 border-t border-white/5">
-                                        <i class="fas fa-list-alt text-cyan-400"></i> Formulário
-                                    </div>
-                                    <div class="space-y-3">
+                                <div id="f-section-form" class="space-y-4 transition-all duration-300 border-t border-white/5 pt-2">
+                                    <button onclick="toggleFormAccordion('f-section-form')" class="w-full flex items-center justify-between text-[10px] font-bold text-slate-500 uppercase tracking-widest hover:text-white transition-all py-1 group">
+                                        <div class="flex items-center gap-2">
+                                            <i class="fas fa-list-alt text-cyan-400"></i> Formulário
+                                        </div>
+                                        <i class="fas fa-chevron-down text-[8px] transition-transform duration-300"></i>
+                                    </button>
+                                    <div id="f-content-f-section-form" class="space-y-3 hidden overflow-hidden pb-4">
                                         <div class="grid grid-cols-2 gap-2">
                                             <div>
                                                 <label class="block text-[10px] text-slate-500 mb-1">Fundo do Card</label>
@@ -3407,11 +3419,14 @@
                                 </div>
 
                                 <!-- Section: Botão -->
-                                <div id="f-section-button" class="space-y-4 transition-all duration-300">
-                                    <div class="flex items-center gap-2 text-[10px] font-bold text-slate-500 uppercase tracking-widest pt-2 border-t border-white/5">
-                                        <i class="fas fa-mouse-pointer text-cyan-400"></i> Botão
-                                    </div>
-                                    <div class="space-y-3">
+                                <div id="f-section-button" class="space-y-4 transition-all duration-300 border-t border-white/5 pt-2">
+                                    <button onclick="toggleFormAccordion('f-section-button')" class="w-full flex items-center justify-between text-[10px] font-bold text-slate-500 uppercase tracking-widest hover:text-white transition-all py-1 group">
+                                        <div class="flex items-center gap-2">
+                                            <i class="fas fa-mouse-pointer text-cyan-400"></i> Botão
+                                        </div>
+                                        <i class="fas fa-chevron-down text-[8px] transition-transform duration-300"></i>
+                                    </button>
+                                    <div id="f-content-f-section-button" class="space-y-3 hidden overflow-hidden pb-4">
                                         <div>
                                             <label class="block text-[10px] text-slate-500 mb-1">Texto do Botão</label>
                                             <input type="text" value="${editingForm.styles.btnText}" oninput="updateFormLive('btnText', this.value)" class="w-full bg-slate-900 border border-white/10 rounded-lg px-3 py-1.5 text-xs text-white outline-none">
@@ -3430,11 +3445,14 @@
                                 </div>
 
                                 <!-- Section: Rodapé -->
-                                <div id="f-section-footer" class="space-y-4 transition-all duration-300">
-                                    <div class="flex items-center gap-2 text-[10px] font-bold text-slate-500 uppercase tracking-widest pt-2 border-t border-white/5">
-                                        <i class="fas fa-info-circle text-cyan-400"></i> Rodapé
-                                    </div>
-                                    <div class="space-y-3">
+                                <div id="f-section-footer" class="space-y-4 transition-all duration-300 border-t border-white/5 pt-2">
+                                    <button onclick="toggleFormAccordion('f-section-footer')" class="w-full flex items-center justify-between text-[10px] font-bold text-slate-500 uppercase tracking-widest hover:text-white transition-all py-1 group">
+                                        <div class="flex items-center gap-2">
+                                            <i class="fas fa-info-circle text-cyan-400"></i> Rodapé
+                                        </div>
+                                        <i class="fas fa-chevron-down text-[8px] transition-transform duration-300"></i>
+                                    </button>
+                                    <div id="f-content-f-section-footer" class="space-y-3 hidden overflow-hidden pb-4">
                                         <div>
                                             <label class="block text-[10px] text-slate-500 mb-1">Texto do Rodapé</label>
                                             <input type="text" value="${editingForm.styles.footerText}" oninput="updateFormLive('footerText', this.value)" class="w-full bg-slate-900 border border-white/10 rounded-lg px-3 py-1.5 text-xs text-white outline-none">
@@ -3464,6 +3482,47 @@
         function updateFormLive(prop, val) {
             editingForm.styles[prop] = val;
             updateFormPreview();
+        }
+
+        function toggleFormAccordion(sectionId, forceOpen = false) {
+            const section = document.getElementById(sectionId);
+            const content = document.getElementById('f-content-' + sectionId);
+            const chevron = section.querySelector('.fa-chevron-down');
+
+            const isOpen = !content.classList.contains('hidden');
+
+            // Close all other sections
+            document.querySelectorAll('[id^="f-content-"]').forEach(c => {
+                if (c.id !== 'f-content-' + sectionId) {
+                    c.classList.add('hidden');
+                    const parent = c.parentElement;
+                    const otherChevron = parent.querySelector('.fa-chevron-down');
+                    if (otherChevron) otherChevron.style.transform = 'rotate(0deg)';
+                }
+            });
+
+            if (forceOpen || !isOpen) {
+                if (content) content.classList.remove('hidden');
+                if (chevron) chevron.style.transform = 'rotate(180deg)';
+            } else {
+                if (content) content.classList.add('hidden');
+                if (chevron) chevron.style.transform = 'rotate(0deg)';
+            }
+        }
+
+        function focusFormSection(sectionId) {
+            toggleFormAccordion(sectionId, true);
+            setTimeout(() => {
+                const el = document.getElementById(sectionId);
+                if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+
+                // Visual highlight
+                const highlight = document.getElementById(sectionId);
+                if (highlight) {
+                    highlight.style.backgroundColor = 'rgba(6, 182, 212, 0.05)';
+                    setTimeout(() => highlight.style.backgroundColor = '', 1000);
+                }
+            }, 100);
         }
 
         function updateFormPreview() {
