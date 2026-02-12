@@ -2812,14 +2812,6 @@
                 }
             };
 
-            // Global click to close dropdowns
-            window.addEventListener('click', (e) => {
-                if (!e.target.closest(`#${containerId}`)) {
-                    const drop = document.getElementById(`${cid}-dropdown`);
-                    if (drop) drop.classList.add('hidden');
-                }
-            });
-
             render();
         }
 
@@ -2928,18 +2920,15 @@
                 } catch (err) { showToast('Erro no upload', 'error'); }
             };
 
-            // Global click to close
-            if (!window.imagePickerClickInit) {
-                window.addEventListener('click', (e) => {
-                    if (!e.target.closest('[id$="-picker"]')) {
-                        document.querySelectorAll('[id$="-dropdown"]').forEach(d => d.classList.add('hidden'));
-                    }
-                });
-                window.imagePickerClickInit = true;
-            }
-
             await render();
         }
+
+        // Global click handler to close all picker dropdowns when clicking outside
+        window.addEventListener('click', (e) => {
+            if (!e.target.closest('[id$="-dropdown"]') && !e.target.closest('[onfocus*="Dropdown"]')) {
+                document.querySelectorAll('[id$="-dropdown"]').forEach(d => d.classList.add('hidden'));
+            }
+        });
         function closeModal() {
             document.getElementById('modalOverlay').classList.add('hidden');
             document.getElementById('modalOverlay').classList.remove('flex');
