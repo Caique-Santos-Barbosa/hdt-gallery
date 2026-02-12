@@ -1,3 +1,4 @@
+// HDT Conecte Storage v1.0.1
 const fs = require('fs-extra');
 const path = require('path');
 
@@ -26,10 +27,21 @@ const defaultDb = {
 
 async function initDb() {
     await fs.ensureDir(path.join(__dirname, 'data'));
-    if (!await fs.exists(DB_PATH)) {
+    let dbExists = await fs.exists(DB_PATH);
+    let db = null;
+
+    if (dbExists) {
+        try {
+            db = await getDb();
+        } catch (err) {
+            console.error('DB Corruption detected, resetting to default:', err);
+            db = null; // Force reset
+        }
+    }
+
+    if (!db) {
         await fs.writeJson(DB_PATH, defaultDb, { spaces: 2 });
     } else {
-        const db = await getDb();
         let changed = false;
         for (const key in defaultDb) {
             if (!db[key]) {
@@ -42,11 +54,21 @@ async function initDb() {
 }
 
 async function getDb() {
-    return await fs.readJson(DB_PATH);
+    try {
+        return await fs.readJson(DB_PATH);
+    } catch (err) {
+        // If file is empty or invalid, return null to trigger reset in initDb if called there, 
+        // or throw if called elsewhere to prevent data loss.
+        if (err.name === 'SyntaxError') return null;
+        throw err;
+    }
 }
 
 async function saveDb(db) {
-    await fs.writeJson(DB_PATH, db, { spaces: 2 });
+    // Atomic Write: Write to temp file then rename
+    const tempPath = DB_PATH + '.tmp';
+    await fs.writeJson(tempPath, db, { spaces: 2 });
+    await fs.move(tempPath, DB_PATH, { overwrite: true });
 }
 
 const storage = {
