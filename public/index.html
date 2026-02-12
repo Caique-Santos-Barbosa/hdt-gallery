@@ -844,12 +844,45 @@
                                 <i class="fas fa-trash-alt"></i>
                             </button>
                         </div>
-                        <button onclick="copyToClipboard('${img.url}')" class="w-full py-1.5 bg-white/5 border border-white/10 rounded-lg text-[9px] font-bold hover:bg-cyan-500/10 hover:text-cyan-400 transition-all uppercase tracking-tight">
-                            Link
-                        </button>
+                        <div class="grid grid-cols-2 gap-1 mb-2">
+                           <div>
+                               <label class="block text-[8px] text-slate-500 uppercase font-bold mb-1">Largura</label>
+                               <input type="number" id="w-${img.filename.replace(/\./g, '-')}" placeholder="Auto" class="w-full bg-slate-900 border border-white/10 rounded-lg px-2 py-1 text-[10px] text-white outline-none focus:border-cyan-500">
+                           </div>
+                           <div>
+                               <label class="block text-[8px] text-slate-500 uppercase font-bold mb-1">Altura</label>
+                               <input type="number" id="h-${img.filename.replace(/\./g, '-')}" placeholder="Auto" class="w-full bg-slate-900 border border-white/10 rounded-lg px-2 py-1 text-[10px] text-white outline-none focus:border-cyan-500">
+                           </div>
+                        </div>
+                        <div class="flex gap-1">
+                            <button onclick="copyToClipboard('${img.url}')" title="Original" class="flex-1 py-1.5 bg-white/5 border border-white/10 rounded-lg text-[9px] font-bold hover:bg-white/10 transition-all uppercase tracking-tight">
+                                URL
+                            </button>
+                            <button onclick="copyResizeLink('${img.filename}')" class="flex-1 py-1.5 bg-cyan-600/20 border border-cyan-500/30 text-cyan-400 rounded-lg text-[9px] font-bold hover:bg-cyan-500 hover:text-white transition-all uppercase tracking-tight">
+                                Redim.
+                            </button>
+                        </div>
                     </div>
                 `).join('');
             } catch (err) { showToast('Erro ao carregar galeria', 'error'); }
+        }
+
+        function copyResizeLink(filename) {
+            const w = document.getElementById(`w-${filename.replace(/\./g, '-')}`).value;
+            const h = document.getElementById(`h-${filename.replace(/\./g, '-')}`).value;
+
+            if (!w && !h) {
+                showToast('Defina largura ou altura', 'info');
+                return;
+            }
+
+            const protocol = window.location.protocol;
+            const host = window.location.host;
+            let url = `${protocol}//${host}/api/resize?img=${filename}`;
+            if (w) url += `&w=${w}`;
+            if (h) url += `&h=${h}`;
+
+            copyToClipboard(url);
         }
 
         async function deleteImage(filename) {
@@ -1473,6 +1506,12 @@
                                         <i class="fas fa-chevron-down text-[10px] transition-transform rotate-180" id="icon-acc-style"></i>
                                     </div>
                                     <div id="acc-style" class="space-y-5">
+                                        <!-- Content toggle field -->
+                                        <div id="content-style-controls">
+                                            <label class="block text-[10px] text-slate-500 mb-2 uppercase font-bold tracking-widest">Conteúdo do Bloco</label>
+                                            <textarea id="style-el-content" oninput="updateElContent(this.value)" class="w-full bg-slate-900 border border-white/10 rounded-lg px-3 py-2 text-xs text-white outline-none focus:border-cyan-500 min-h-[100px] resize-y" placeholder="Digite o texto aqui..."></textarea>
+                                        </div>
+
                                         <!-- Text specific styles -->
                                         <div id="text-style-controls" class="space-y-5">
                                             <div class="grid grid-cols-2 gap-3">
@@ -1717,6 +1756,20 @@
             syncToTextarea();
         }
 
+        function updateElContent(val) {
+            if (!selectedEl) return;
+
+            // If it's a button, update the text inside the anchor
+            if (selectedEl.tagName === 'A') {
+                selectedEl.innerText = val;
+            } else if (selectedEl.tagName === 'IMG') {
+                // Ignore for images
+            } else {
+                selectedEl.innerText = val;
+            }
+            syncToTextarea();
+        }
+
         function toggleEditorMode() {
             const codeArea = document.getElementById('code-area');
             const btn = document.getElementById('toggle-editor');
@@ -1761,9 +1814,20 @@
             if (type === 'spacer') html = '<div style="height: 40px; width: 100%;"></div>';
             if (type === 'divider') html = '<div style="border-top: 1px solid #e2e8f0; margin: 30px 0; width: 100%;"></div>';
 
-            const div = doc.createElement('div');
-            div.innerHTML = html;
-            container.appendChild(div.firstElementChild);
+            const isTable = container.tagName === 'TABLE' || container.tagName === 'TBODY' || container.tagName === 'TR';
+
+            if (isTable) {
+                const tr = doc.createElement('tr');
+                const td = doc.createElement('td');
+                td.innerHTML = html;
+                tr.appendChild(td);
+                container.appendChild(tr);
+            } else {
+                const div = doc.createElement('div');
+                div.innerHTML = html;
+                container.appendChild(div.firstElementChild);
+            }
+
             syncToTextarea();
             setupVisualEditor();
         }
@@ -1787,11 +1851,17 @@
             if (!container) {
                 // Try to find a table that looks like the main container
                 const tables = Array.from(doc.getElementsByTagName('table'));
-                container = tables.find(t => t.getAttribute('width') >= 500 && t.getAttribute('width') <= 800) ||
+                const mainTable = tables.find(t => t.getAttribute('width') >= 500 && t.getAttribute('width') <= 800) ||
                     tables.find(t => t.classList.contains('w-90p')) ||
                     tables[0];
 
-                if (container) {
+                if (mainTable) {
+                    // Try to find a central TD or TBODY to append to
+                    const cells = Array.from(mainTable.getElementsByTagName('td'));
+                    container = cells.find(c => c.innerHTML.length > 50) ||
+                        mainTable.querySelector('tbody') ||
+                        mainTable;
+
                     container.id = 'email-container';
                     console.log('HDT Editor: Container detected and labeled:', container);
                 }
@@ -1843,7 +1913,20 @@
                 selectedEl.contentEditable = "true";
 
                 document.getElementById('acc-style-container').classList.remove('hidden');
+
+                // Auto open accordion if hidden
+                const accStyle = document.getElementById('acc-style');
+                if (accStyle.classList.contains('hidden')) {
+                    toggleAccordion('acc-style');
+                }
+
                 syncSidebarWithEl(selectedEl);
+
+                // Focus content textarea if it's a text element
+                if (target.tagName !== 'IMG' && target.tagName !== 'DIV') {
+                    const contentArea = document.getElementById('style-el-content');
+                    if (contentArea) contentArea.focus();
+                }
             });
 
             doc.addEventListener('input', () => syncToTextarea());
@@ -1854,8 +1937,11 @@
 
             // Toggle controls based on element type
             const isImg = el.tagName === 'IMG';
-            document.getElementById('text-style-controls').classList.toggle('hidden', isImg);
+            const isSpacer = el.tagName === 'DIV' && (el.style.height || el.innerHTML === '');
+
+            document.getElementById('text-style-controls').classList.toggle('hidden', isImg || isSpacer);
             document.getElementById('image-style-controls').classList.toggle('hidden', !isImg);
+            document.getElementById('content-style-controls').classList.toggle('hidden', isImg || isSpacer);
 
             if (isImg) {
                 document.getElementById('style-img-src').value = el.src || '';
@@ -1867,6 +1953,10 @@
                 if (rgb) {
                     const hex = "#" + rgb.slice(0, 3).map(x => parseInt(x).toString(16).padStart(2, '0')).join('');
                     document.getElementById('style-font-color').value = hex;
+                }
+
+                if (!isSpacer) {
+                    document.getElementById('style-el-content').value = el.innerText.trim();
                 }
             }
 

@@ -10,6 +10,7 @@ const { parse } = require('csv-parse/sync');
 const XLSX = require('xlsx');
 const { storage, initDb } = require('./storage');
 const https = require('https');
+const sharp = require('sharp');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -107,6 +108,40 @@ app.delete('/api/images/:filename', async (req, res) => {
     res.json({ success: true });
   } catch (err) {
     res.status(500).json({ error: 'Could not delete image' });
+  }
+});
+
+app.get('/api/resize', async (req, res) => {
+  const { img, w, h } = req.query;
+  if (!img) return res.status(400).send('Image filename required');
+
+  const filePath = path.join(__dirname, 'uploads', img);
+  if (!fs.existsSync(filePath)) return res.status(404).send('Image not found');
+
+  try {
+    let transform = sharp(filePath);
+    const width = parseInt(w);
+    const height = parseInt(h);
+
+    if (width && height) {
+      transform = transform.resize(width, height, { fit: 'cover' });
+    } else if (width) {
+      transform = transform.resize(width);
+    } else if (height) {
+      transform = transform.resize(null, height);
+    }
+
+    const format = path.extname(img).toLowerCase().replace('.', '');
+    if (['jpg', 'jpeg', 'png', 'webp', 'gif'].includes(format)) {
+      res.type(`image/${format === 'jpg' ? 'jpeg' : format}`);
+    } else {
+      res.type('image/png');
+    }
+
+    transform.pipe(res);
+  } catch (err) {
+    console.error('Resize error:', err);
+    res.status(500).send('Error processing image');
   }
 });
 
