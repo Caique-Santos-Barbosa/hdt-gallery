@@ -1634,17 +1634,32 @@
             const iframe = document.getElementById('tpl-preview');
             const doc = iframe.contentDocument || iframe.contentWindow.document;
             const container = doc.getElementById('email-container');
+
+            // Apply to body for global background
+            if (prop === 'backgroundColor') {
+                doc.body.style.backgroundColor = val;
+                // Update outer tables if present
+                const outerTables = doc.querySelectorAll('table[width="100%"]');
+                outerTables.forEach(t => t.setAttribute('bgcolor', val));
+            }
+
             if (container) {
                 if (prop === 'backgroundImage') {
                     container.style.backgroundSize = 'cover';
                     container.style.backgroundPosition = 'center';
+                    container.setAttribute('background', val.replace(/url\(["']?(.*?)["']?\)/, '$1'));
                 }
+
                 container.style[prop] = val;
 
                 // If it's backgroundColor, also try to update any wrapping tables for outlook
                 if (prop === 'backgroundColor') {
+                    container.setAttribute('bgcolor', val);
                     const table = container.closest('table');
-                    if (table) table.style.backgroundColor = val;
+                    if (table) {
+                        table.style.backgroundColor = val;
+                        table.setAttribute('bgcolor', val);
+                    }
                 }
 
                 syncToTextarea();
@@ -1660,14 +1675,18 @@
                 container.style.maxWidth = widthSuffix;
                 container.style.width = '100%';
 
+                // If it's a table, update width attribute
+                if (container.tagName === 'TABLE') {
+                    container.setAttribute('width', px);
+                }
+
                 // Update MSO tables if present
                 const outerTable = container.closest('table');
-                if (outerTable) {
-                    outerTable.width = px; // attribute for outlook
-                    outerTable.style.width = widthSuffix; // style for others
-                    // Target the TD as well
+                if (outerTable && outerTable !== container) {
+                    outerTable.setAttribute('width', px);
+                    outerTable.style.width = widthSuffix;
                     const td = outerTable.querySelector('td');
-                    if (td) td.width = px;
+                    if (td) td.setAttribute('width', px);
                 }
 
                 document.getElementById('width-val').innerText = widthSuffix;
@@ -1763,11 +1782,26 @@
             const iframe = document.getElementById('tpl-preview');
             const doc = iframe.contentDocument || iframe.contentWindow.document;
 
+            // Robust Container Detection
+            let container = doc.getElementById('email-container');
+            if (!container) {
+                // Try to find a table that looks like the main container
+                const tables = Array.from(doc.getElementsByTagName('table'));
+                container = tables.find(t => t.getAttribute('width') >= 500 && t.getAttribute('width') <= 800) ||
+                    tables.find(t => t.classList.contains('w-90p')) ||
+                    tables[0];
+
+                if (container) {
+                    container.id = 'email-container';
+                    console.log('HDT Editor: Container detected and labeled:', container);
+                }
+            }
+
             const style = doc.getElementById('builder-styles') || doc.createElement('style');
             style.id = 'builder-styles';
             style.textContent = `
-                .hdt-hover { outline: 2px solid rgba(6, 182, 212, 0.4) !important; outline-offset: 2px; cursor: pointer; }
-                .hdt-selected { outline: 2px solid #06b6d4 !important; outline-offset: 2px; }
+                .hdt-hover { outline: 2px solid rgba(6, 182, 212, 0.4) !important; outline-offset: -2px; cursor: pointer; }
+                .hdt-selected { outline: 2px solid #06b6d4 !important; outline-offset: -2px; }
             `;
             if (!doc.getElementById('builder-styles')) doc.head.appendChild(style);
 
@@ -1784,26 +1818,32 @@
             doc.addEventListener('click', (e) => {
                 e.preventDefault();
                 const target = e.target;
-                if (target.tagName !== 'HTML' && target.tagName !== 'BODY') {
+
+                // If clicking background/margins
+                if (target.tagName === 'HTML' || target.tagName === 'BODY' || target === doc.documentElement) {
                     if (selectedEl) {
                         selectedEl.classList.remove('hdt-selected');
                         selectedEl.contentEditable = "false";
+                        selectedEl = null;
                     }
-
-                    selectedEl = target;
-                    selectedEl.classList.add('hdt-selected');
-                    selectedEl.contentEditable = "true";
-
-                    document.getElementById('acc-style-container').classList.remove('hidden');
-                    syncSidebarWithEl(selectedEl);
-                } else {
-                    if (selectedEl) {
-                        selectedEl.classList.remove('hdt-selected');
-                        selectedEl.contentEditable = "false";
-                    }
-                    selectedEl = null;
                     document.getElementById('acc-style-container').classList.add('hidden');
+                    // Open General Config
+                    const accConfig = document.getElementById('acc-config');
+                    if (accConfig.classList.contains('hidden')) toggleAccordion('acc-config');
+                    return;
                 }
+
+                if (selectedEl) {
+                    selectedEl.classList.remove('hdt-selected');
+                    selectedEl.contentEditable = "false";
+                }
+
+                selectedEl = target;
+                selectedEl.classList.add('hdt-selected');
+                selectedEl.contentEditable = "true";
+
+                document.getElementById('acc-style-container').classList.remove('hidden');
+                syncSidebarWithEl(selectedEl);
             });
 
             doc.addEventListener('input', () => syncToTextarea());
