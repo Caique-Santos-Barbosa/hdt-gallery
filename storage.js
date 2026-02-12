@@ -27,48 +27,30 @@ const defaultDb = {
 
 async function initDb() {
     await fs.ensureDir(path.join(__dirname, 'data'));
-    let dbExists = await fs.exists(DB_PATH);
-    let db = null;
-
-    if (dbExists) {
-        try {
-            db = await getDb();
-        } catch (err) {
-            console.error('DB Corruption detected, resetting to default:', err);
-            db = null; // Force reset
-        }
-    }
-
-    if (!db) {
-        await fs.writeJson(DB_PATH, defaultDb, { spaces: 2 });
-    } else {
-        let changed = false;
-        for (const key in defaultDb) {
-            if (!db[key]) {
-                db[key] = defaultDb[key];
-                changed = true;
-            }
-        }
-        if (changed) await saveDb(db);
-    }
+    const db = await getDb();
+    // This will write the file if it doesn't exist or was corrupted
+    await saveDb(db);
 }
 
 async function getDb() {
     try {
-        return await fs.readJson(DB_PATH);
+        if (!await fs.exists(DB_PATH)) return defaultDb;
+        const db = await fs.readJson(DB_PATH);
+        return db || defaultDb;
     } catch (err) {
-        // If file is empty or invalid, return null to trigger reset in initDb if called there, 
-        // or throw if called elsewhere to prevent data loss.
-        if (err.name === 'SyntaxError') return null;
-        throw err;
+        console.error('CRITICAL: DB Read Error (Corrupted JSON). Using fallback defaults.', err);
+        return defaultDb;
     }
 }
 
 async function saveDb(db) {
-    // Atomic Write: Write to temp file then rename
-    const tempPath = DB_PATH + '.tmp';
-    await fs.writeJson(tempPath, db, { spaces: 2 });
-    await fs.move(tempPath, DB_PATH, { overwrite: true });
+    try {
+        const tempPath = DB_PATH + '.tmp';
+        await fs.writeJson(tempPath, db, { spaces: 2 });
+        await fs.move(tempPath, DB_PATH, { overwrite: true });
+    } catch (err) {
+        console.error('CRITICAL: DB Save Error:', err);
+    }
 }
 
 const storage = {
