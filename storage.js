@@ -245,6 +245,36 @@ const storage = {
             return db.users[index];
         }
         return null;
+    },
+    async getPerformanceStats() {
+        const db = await getDb();
+        const logs = db.logs || [];
+        const last7Days = [];
+        for (let i = 0; i < 7; i++) {
+            const d = new Date();
+            d.setDate(d.getDate() - i);
+            const dateStr = d.toISOString().split('T')[0];
+            const dayLogs = logs.filter(l => {
+                const logDate = l.sentAt ? new Date(l.sentAt).toISOString().split('T')[0] : null;
+                return logDate === dateStr;
+            });
+            last7Days.push({
+                date: d.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' }),
+                success: dayLogs.filter(l => l.status === 'sent').length,
+                failed: dayLogs.filter(l => l.status === 'failed').length
+            });
+        }
+        return last7Days.reverse();
+    },
+    async getAllTags() {
+        const db = await getDb();
+        const tags = new Set();
+        (db.leads || []).forEach(l => {
+            if (l.tags && Array.isArray(l.tags)) {
+                l.tags.forEach(t => tags.add(t));
+            }
+        });
+        return Array.from(tags).sort();
     }
 };
 

@@ -181,7 +181,7 @@
                 </button>
                 <div class="pt-4 pb-2 px-4 text-[10px] font-bold text-slate-500 uppercase tracking-widest">System</div>
                 <button onclick="switchTab('settings')" id="tab-settings"
-                    class="admin-only w-full items-center gap-3 px-4 py-3 rounded-xl transition-all text-slate-400 hover:bg-white/5 hidden">
+                    class="admin-only w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all text-slate-400 hover:bg-white/5 hidden">
                     <i class="fas fa-cog w-5"></i> Configurações
                 </button>
             </nav>
@@ -1041,12 +1041,13 @@
                         </div>
                     </div>
                     <div>
-                        <label class="block text-xs font-bold text-slate-500 uppercase mb-2">Tags (separadas por vírgula)</label>
-                        <input type="text" id="new-lead-tags" placeholder="tag1, tag2" class="w-full bg-slate-900/50 border border-white/10 rounded-xl px-4 py-3 text-white outline-none focus:border-cyan-500">
+                        <label class="block text-xs font-bold text-slate-500 uppercase mb-2">Tags</label>
+                        <div id="new-lead-tags-container" class="relative"></div>
                     </div>
                     <button onclick="saveNewLead()" class="w-full py-4 bg-blue-600 text-white rounded-xl font-bold hover:bg-blue-700 transition-all shadow-lg shadow-blue-600/20">Cadastrar Lead</button>
                 </div>
             `;
+            initTagPicker('new-lead-tags-container');
         }
 
         async function saveNewLead() {
@@ -1057,7 +1058,7 @@
                 empresa: document.getElementById('new-lead-company').value,
                 cidade_uf: document.getElementById('new-lead-city').value,
                 cpf_cnpj: document.getElementById('new-lead-doc').value,
-                tags: document.getElementById('new-lead-tags').value.split(',').map(t => t.trim()).filter(Boolean)
+                tags: JSON.parse(document.getElementById('new-lead-tags-container').dataset.tags || '[]')
             };
 
             if (!data.email) return showToast('Email é obrigatório', 'error');
@@ -1119,12 +1120,13 @@
                         </div>
                     </div>
                     <div>
-                        <label class="block text-xs font-bold text-slate-500 uppercase mb-2">Tags (separadas por vírgula)</label>
-                        <input type="text" id="edit-lead-tags" value="${(lead.tags || []).join(', ')}" class="w-full bg-slate-900/50 border border-white/10 rounded-xl px-4 py-3 text-white outline-none focus:border-cyan-500">
+                        <label class="block text-xs font-bold text-slate-500 uppercase mb-2">Tags</label>
+                        <div id="edit-lead-tags-container" class="relative"></div>
                     </div>
                     <button onclick="saveLeadEdit()" class="w-full py-4 bg-cyan-600 text-white rounded-xl font-bold hover:bg-cyan-700 transition-all shadow-lg shadow-cyan-600/20">Salvar Alterações</button>
                 </div>
             `;
+            initTagPicker('edit-lead-tags-container', lead.tags || []);
         }
 
         async function saveLeadEdit() {
@@ -1136,7 +1138,7 @@
                 empresa: document.getElementById('edit-lead-company').value,
                 cidade_uf: document.getElementById('edit-lead-city').value,
                 cpf_cnpj: document.getElementById('edit-lead-doc').value,
-                tags: document.getElementById('edit-lead-tags').value.split(',').map(t => t.trim()).filter(Boolean)
+                tags: JSON.parse(document.getElementById('edit-lead-tags-container').dataset.tags || '[]')
             };
 
             try {
@@ -1865,10 +1867,11 @@
                             <div class="flex items-center gap-2">
                                 ${c.status === 'running' ?
                             `<button onclick="stopCampaign('${c.id}')" class="px-4 py-2 bg-rose-500/20 text-rose-400 border border-rose-500/20 rounded-xl text-xs font-bold hover:bg-rose-500 hover:text-white transition-all">Parar</button>` :
-                            `<button onclick="startCampaign('${c.id}')" class="px-4 py-2 bg-cyan-500/20 text-cyan-400 border border-cyan-500/20 rounded-xl text-xs font-bold hover:bg-cyan-500 hover:text-white transition-all">${isScheduled ? 'Antecipar' : 'Iniciar'}</button>`
+                            `<button onclick="startCampaign('${c.id}')" class="px-4 py-2 bg-cyan-500/20 text-cyan-400 border border-cyan-500/20 rounded-xl text-xs font-bold hover:bg-cyan-500 hover:text-white transition-all">${c.status === 'scheduled' ? 'Antecipar' : 'Iniciar'}</button>`
                         }
                                 <div class="w-px h-8 bg-white/5 mx-2"></div>
-                                <button onclick="deleteCampaign('${c.id}')" class="p-3 text-slate-500 hover:text-rose-400 hover:bg-rose-500/10 rounded-xl transition-all"><i class="fas fa-trash"></i></button>
+                                ${(c.status === 'pending' || c.status === 'scheduled' || c.status === 'paused') ? `<button onclick="editCampaign('${c.id}')" class="p-3 text-slate-500 hover:text-cyan-400 hover:bg-cyan-500/10 rounded-xl transition-all" title="Editar"><i class="fas fa-edit"></i></button>` : ''}
+                                <button onclick="deleteCampaign('${c.id}')" class="p-3 text-slate-500 hover:text-rose-400 hover:bg-rose-500/10 rounded-xl transition-all" title="Excluir"><i class="fas fa-trash"></i></button>
                             </div>
                         </div>
                     `;
@@ -1883,12 +1886,24 @@
 
         let wizardState = { step: 1, data: {}, templates: [], leads: [], availableTags: [], selectedTags: [] };
 
-        async function openCampaignWizard() {
-            wizardState = { step: 1, data: { batchSize: 50, interval: 60 }, selectedTags: [] };
+        async function openCampaignWizard(editingId = null) {
+            wizardState = { step: 1, data: { batchSize: 50, interval: 60 }, selectedTags: [], editingId };
+            if (editingId) {
+                const response = await fetch('/api/marketing/campaigns');
+                const campaigns = await response.json();
+                const campaign = campaigns.find(c => c.id === editingId);
+                if (campaign) {
+                    wizardState.data = { ...campaign };
+                    wizardState.selectedTags = campaign.targetTags || [];
+                }
+            }
             wizardState.templates = await (await fetch('/api/marketing/templates')).json();
             wizardState.leads = await (await fetch('/api/marketing/leads')).json();
-            wizardState.availableTags = [...new Set(wizardState.leads.flatMap(l => l.tags))];
             renderWizard();
+        }
+
+        async function editCampaign(id) {
+            openCampaignWizard(id);
         }
 
         function renderWizard() {
@@ -1900,7 +1915,7 @@
             if (step === 1) {
                 content = `
                     <div class="flex justify-between items-center mb-6">
-                        <h2 class="text-xl font-bold text-white">Criar Campanha - Etapa 1 de 3</h2>
+                        <h2 class="text-xl font-bold text-white">${wizardState.editingId ? 'Editar' : 'Criar'} Campanha - Etapa 1 de 3</h2>
                         <button onclick="closeModal()" class="text-slate-400 hover:text-rose-400 p-2"><i class="fas fa-times text-xl"></i></button>
                     </div>
                     <div class="space-y-6">
@@ -1927,29 +1942,14 @@
 
                 content = `
                     <div class="flex justify-between items-center mb-6">
-                        <h2 class="text-xl font-bold text-white">Criar Campanha - Etapa 2 de 3</h2>
+                        <h2 class="text-xl font-bold text-white">${wizardState.editingId ? 'Editar' : 'Criar'} Campanha - Etapa 2 de 3</h2>
                         <button onclick="closeModal()" class="text-slate-400 hover:text-rose-400 p-2"><i class="fas fa-times text-xl"></i></button>
                     </div>
                     <div class="space-y-6">
                         <div>
                             <label class="block text-sm font-bold text-slate-400 mb-2">Tags de Destino</label>
                             <p class="text-[10px] text-slate-500 mb-3">Selecione as tags dos leads que receberão esta campanha. Deixe vazio para enviar a todos.</p>
-                            
-                            <div class="flex flex-wrap gap-2 mb-3">
-                                ${wizardState.selectedTags.map(t => `
-                                    <span class="flex items-center gap-2 px-3 py-1 bg-cyan-600 text-white rounded-lg text-xs font-bold">
-                                        ${t}
-                                        <button onclick="removeWizTag('${t}')" class="hover:text-cyan-200"><i class="fas fa-times"></i></button>
-                                    </span>
-                                `).join('')}
-                            </div>
-
-                            <div class="relative">
-                                <div class="absolute left-4 top-1/2 -translate-y-1/2 text-slate-500"><i class="fas fa-search"></i></div>
-                                <input type="text" id="wiz-tag-search" oninput="filterWizTags()" placeholder="Pesquisar tags..." class="w-full bg-slate-900/50 border border-white/10 rounded-xl pl-10 pr-4 py-3 text-white outline-none focus:border-cyan-500">
-                                <div id="wiz-tag-results" class="absolute top-full left-0 w-full mt-2 bg-slate-800 border border-white/10 rounded-xl overflow-hidden hidden z-50 shadow-2xl">
-                                </div>
-                            </div>
+                            <div id="wiz-tags-container" class="relative"></div>
                         </div>
                         
                         <p class="text-xs text-slate-400"><b class="text-cyan-400">${leadCount.toLocaleString()} lead(s)</b> serão incluídos nesta campanha</p>
@@ -1967,7 +1967,7 @@
 
                         <div class="flex gap-4">
                             <button onclick="prevWizStep()" class="flex-1 py-4 bg-white/5 border border-white/20 text-white rounded-xl font-bold hover:bg-white/10 transition-all">Voltar</button>
-                            <button onclick="nextWizStep()" class="flex-1 py-4 bg-cyan-600 text-white rounded-xl font-bold hover:bg-cyan-700 transition-all">Revisar</button>
+                            <button onclick="nextWizStep()" class="flex-1 py-4 bg-cyan-600 text-white rounded-xl font-bold hover:bg-cyan-700 transition-all">Revisar e Salvar</button>
                         </div>
                     </div>
                 `;
@@ -1977,7 +1977,7 @@
 
                 content = `
                     <div class="flex justify-between items-center mb-6">
-                        <h2 class="text-xl font-bold text-white">Criar Campanha - Etapa 3 de 3</h2>
+                        <h2 class="text-xl font-bold text-white">${wizardState.editingId ? 'Editar' : 'Criar'} Campanha - Etapa 3 de 3</h2>
                         <button onclick="closeModal()" class="text-slate-400 hover:text-rose-400 p-2"><i class="fas fa-times text-xl"></i></button>
                     </div>
                     <div class="glass p-6 rounded-2xl bg-slate-900/50 space-y-4">
@@ -2016,13 +2016,13 @@
                     </div>
 
                     <div class="flex gap-4 mt-6">
-                        <button onclick="prevWizStep()" class="flex-1 py-4 bg-white/5 border border-white/20 text-white rounded-xl font-bold hover:bg-white/10 transition-all">Voltar</button>
-                        <button onclick="saveCampaign()" class="flex-1 py-4 bg-cyan-600 text-white rounded-xl font-bold hover:bg-cyan-700 transition-all shadow-lg shadow-cyan-600/20">Criar Campanha</button>
+                        <button onclick="saveCampaign()" class="flex-1 py-4 bg-cyan-600 text-white rounded-xl font-bold hover:bg-cyan-700 transition-all shadow-lg shadow-cyan-600/20">${wizardState.editingId ? 'Atualizar' : 'Criar'} Campanha</button>
                     </div>
                 `;
             }
 
             modal.innerHTML = content;
+            if (step === 2) initTagPicker('wiz-tags-container', wizardState.selectedTags);
             document.getElementById('modalOverlay').classList.remove('hidden');
             document.getElementById('modalOverlay').classList.add('flex');
         }
@@ -2070,6 +2070,7 @@
                 wizardState.data.templateId = document.getElementById('wiz-template').value;
                 if (!wizardState.data.name || !wizardState.data.templateId) return showToast('Nome e Modelo são obrigatórios', 'error');
             } else if (wizardState.step === 2) {
+                wizardState.selectedTags = JSON.parse(document.getElementById('wiz-tags-container').dataset.tags || '[]');
                 wizardState.data.interval = parseInt(document.getElementById('wiz-interval').value) || 60;
                 wizardState.data.scheduledAt = document.getElementById('wiz-scheduled').value;
             }
@@ -2083,6 +2084,7 @@
         }
 
         async function saveCampaign() {
+            const isEdit = !!wizardState.editingId;
             const data = {
                 name: wizardState.data.name,
                 templateId: wizardState.data.templateId,
@@ -2091,19 +2093,29 @@
                 status: wizardState.data.scheduledAt ? 'scheduled' : 'pending',
                 interval: wizardState.data.interval,
                 scheduledAt: wizardState.data.scheduledAt,
-                sentCount: 0,
-                failedCount: 0,
-                createdBy: currentUser ? currentUser.name : 'Sistema',
-                createdAt: new Date()
+                createdBy: currentUser ? currentUser.name : 'Sistema'
             };
 
-            showToast('Criando campanha...', 'info');
-            await fetch('/api/marketing/campaigns', {
-                method: 'POST',
+            if (!isEdit) {
+                data.sentCount = 0;
+                data.failedCount = 0;
+                data.createdAt = new Date();
+                data.openCount = 0;
+                data.clickCount = 0;
+            }
+
+            showToast(isEdit ? 'Atualizando campanha...' : 'Criando campanha...', 'info');
+
+            const url = isEdit ? `/api/marketing/campaigns/${wizardState.editingId}` : '/api/marketing/campaigns';
+            const method = isEdit ? 'PUT' : 'POST';
+
+            await fetch(url, {
+                method: method,
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify(data)
             });
-            showToast('Campanha criada!');
+
+            showToast(isEdit ? 'Campanha atualizada!' : 'Campanha criada!');
             closeModal();
             loadCampaigns();
         }
@@ -2287,61 +2299,140 @@
             } catch (err) { }
         }
 
-        function renderPerformanceChart(campaigns) {
+        async function renderPerformanceChart() {
             const ctx = document.getElementById('performanceChart').getContext('2d');
-
-            // Group data by date
-            const last7Days = [...Array(7)].map((_, i) => {
-                const d = new Date();
-                d.setDate(d.getDate() - i);
-                return d.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' });
-            }).reverse();
-
-            const sentData = last7Days.map(() => 0);
-            const failedData = last7Days.map(() => 0);
-
-            // Simple mock data for visualization if no recent campaigns
-            // In real app, we would fetch logs grouped by date
-            const successCounts = last7Days.map(() => Math.floor(Math.random() * 50));
-            const errorCounts = last7Days.map(() => Math.floor(Math.random() * 5));
-
-            if (perfChart) perfChart.destroy();
-            perfChart = new Chart(ctx, {
-                type: 'line',
-                data: {
-                    labels: last7Days,
-                    datasets: [
-                        {
-                            label: 'Sucesso',
-                            data: successCounts,
-                            borderColor: '#22d3ee',
-                            backgroundColor: 'rgba(34, 211, 238, 0.1)',
-                            fill: true,
-                            tension: 0.4
-                        },
-                        {
-                            label: 'Falhas',
-                            data: errorCounts,
-                            borderColor: '#f43f5e',
-                            backgroundColor: 'rgba(244, 63, 94, 0.1)',
-                            fill: true,
-                            tension: 0.4
+            try {
+                const res = await fetch('/api/marketing/stats/performance');
+                const stats = await res.json();
+                const labels = stats.map(s => s.date);
+                const successData = stats.map(s => s.success);
+                const failedData = stats.map(s => s.failed);
+                if (perfChart) perfChart.destroy();
+                perfChart = new Chart(ctx, {
+                    type: 'line',
+                    data: {
+                        labels: labels,
+                        datasets: [
+                            {
+                                label: 'Sucesso',
+                                data: successData,
+                                borderColor: '#22d3ee',
+                                backgroundColor: 'rgba(34, 211, 238, 0.1)',
+                                fill: true,
+                                tension: 0.4
+                            },
+                            {
+                                label: 'Falhas',
+                                data: failedData,
+                                borderColor: '#f43f5e',
+                                backgroundColor: 'rgba(244, 63, 94, 0.1)',
+                                fill: true,
+                                tension: 0.4
+                            }
+                        ]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        plugins: { legend: { display: false } },
+                        scales: {
+                            y: { beginAtZero: true, grid: { color: 'rgba(255,255,255,0.05)' } },
+                            x: { grid: { display: false } }
                         }
-                    ]
-                },
-                options: {
-                    responsive: true,
-                    maintainAspectRatio: false,
-                    plugins: { legend: { display: false } },
-                    scales: {
-                        y: { beginAtZero: true, grid: { color: 'rgba(255,255,255,0.05)' } },
-                        x: { grid: { display: false } }
                     }
-                }
-            });
+                });
+            } catch (err) { }
         }
 
         // --- Utils ---
+        async function fetchTags() {
+            try {
+                const res = await fetch('/api/marketing/tags');
+                return await res.json();
+            } catch (err) { return []; }
+        }
+
+        async function initTagPicker(containerId, initialTags = []) {
+            const container = document.getElementById(containerId);
+            const allTags = await fetchTags();
+            let selectedTags = [...initialTags];
+
+            function render() {
+                container.innerHTML = `
+                    <div class="flex flex-wrap gap-2 p-3 bg-slate-900/50 border border-white/10 rounded-xl min-h-[50px]">
+                        ${selectedTags.map(t => `
+                            <span class="flex items-center gap-1.5 px-2 py-1 bg-cyan-500/10 text-cyan-400 rounded-lg text-xs font-bold border border-cyan-500/20">
+                                ${t}
+                                <button onclick="removeTagFromPicker('${containerId}', '${t}')" class="hover:text-rose-400 transition-colors"><i class="fas fa-times"></i></button>
+                            </span>
+                        `).join('')}
+                        <input type="text" placeholder="Adicionar tag..." 
+                            class="flex-1 min-w-[100px] bg-transparent outline-none text-xs text-white"
+                            onfocus="showTagDropdown('${containerId}')"
+                            oninput="filterTagDropdown('${containerId}', this.value)"
+                            onkeydown="handleTagKeyDown(event, '${containerId}')">
+                    </div>
+                    <div id="${containerId}-dropdown" class="absolute left-0 right-0 mt-2 bg-slate-900 border border-white/10 rounded-xl shadow-2xl z-[70] hidden max-h-48 overflow-y-auto p-2 space-y-1">
+                        ${allTags.filter(t => !selectedTags.includes(t)).map(t => `
+                            <button onclick="addTagToPicker('${containerId}', '${t}')" class="w-full text-left px-3 py-2 text-xs text-slate-400 hover:bg-white/5 hover:text-white rounded-lg transition-all flex items-center justify-between">
+                                ${t}
+                                <i class="fas fa-plus opacity-0 group-hover:opacity-100"></i>
+                            </button>
+                        `).join('')}
+                    </div>
+                `;
+                container.dataset.tags = JSON.stringify(selectedTags);
+            }
+
+            window.addTagToPicker = (cid, tag) => {
+                const dat = JSON.parse(document.getElementById(cid).dataset.tags);
+                if (!dat.includes(tag)) dat.push(tag);
+                document.getElementById(cid).dataset.tags = JSON.stringify(dat);
+                selectedTags = dat;
+                render();
+            };
+
+            window.removeTagFromPicker = (cid, tag) => {
+                const dat = JSON.parse(document.getElementById(cid).dataset.tags);
+                const index = dat.indexOf(tag);
+                if (index > -1) dat.splice(index, 1);
+                document.getElementById(cid).dataset.tags = JSON.stringify(dat);
+                selectedTags = dat;
+                render();
+            };
+
+            window.showTagDropdown = (cid) => {
+                document.getElementById(`${cid}-dropdown`).classList.remove('hidden');
+            };
+
+            window.filterTagDropdown = (cid, val) => {
+                const drop = document.getElementById(`${cid}-dropdown`);
+                const buttons = drop.querySelectorAll('button');
+                buttons.forEach(b => {
+                    const txt = b.innerText.toLowerCase();
+                    b.style.display = txt.includes(val.toLowerCase()) ? 'flex' : 'none';
+                });
+            };
+
+            window.handleTagKeyDown = (e, cid) => {
+                if (e.key === 'Enter') {
+                    e.preventDefault();
+                    const val = e.target.value.trim();
+                    if (val) addTagToPicker(cid, val);
+                    e.target.value = '';
+                }
+            };
+
+            // Global click to close dropdowns
+            window.addEventListener('click', (e) => {
+                if (!e.target.closest(`#${containerId}`)) {
+                    const drop = document.getElementById(`${cid}-dropdown`);
+                    if (drop) drop.classList.add('hidden');
+                }
+            });
+
+            render();
+        }
         function closeModal() {
             document.getElementById('modalOverlay').classList.add('hidden');
             document.getElementById('modalOverlay').classList.remove('flex');

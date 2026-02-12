@@ -142,6 +142,8 @@ app.delete('/api/marketing/leads/:id', async (req, res) => {
   await storage.deleteLead(req.params.id);
   res.json({ success: true });
 });
+app.get('/api/marketing/tags', async (req, res) => res.json(await storage.getAllTags()));
+app.get('/api/marketing/stats/performance', async (req, res) => res.json(await storage.getPerformanceStats()));
 app.put('/api/marketing/leads/:id', async (req, res) => {
   const lead = { ...req.body, id: req.params.id };
   res.json(await storage.saveLead(lead));
