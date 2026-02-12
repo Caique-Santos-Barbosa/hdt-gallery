@@ -366,6 +366,13 @@
                         <p class="text-slate-400 font-medium">Filtre, organize e gerencie sua base de contatos.</p>
                     </div>
                     <div class="flex items-center gap-3 w-full md:w-auto">
+                        <div class="relative flex-1 md:w-64 group">
+                            <i
+                                class="fas fa-search absolute left-4 top-1/2 -translate-y-1/2 text-slate-500 text-xs group-focus-within:text-cyan-400 transition-colors"></i>
+                            <input type="text" id="lead-search-input" oninput="handleLeadSearch(this.value)"
+                                placeholder="Pesquisar por nome ou email..."
+                                class="w-full bg-white/5 border border-white/10 rounded-xl pl-10 pr-4 py-3 text-sm text-white outline-none focus:border-cyan-500 transition-all">
+                        </div>
                         <!-- Tag Filter Search -->
                         <div class="relative flex-1 md:w-64">
                             <button onclick="toggleTagFilter()"
@@ -820,6 +827,7 @@
         let rowsPerPage = 50;
         let activeTagFilters = [];
         let tagSearchQuery = '';
+        let leadSearchQuery = '';
 
         // Campaign Logs View State
         let currentLogs = [];
@@ -909,12 +917,29 @@
             applyFilters();
         }
 
+        function handleLeadSearch(query) {
+            leadSearchQuery = query.toLowerCase();
+            currentPage = 1;
+            applyFilters();
+        }
+
         function applyFilters() {
-            if (activeTagFilters.length === 0) {
-                filteredLeads = [...allLeads];
-            } else {
-                filteredLeads = allLeads.filter(l => l.tags.some(t => activeTagFilters.includes(t)));
+            let tempLeads = [...allLeads];
+
+            // Apply tag filters
+            if (activeTagFilters.length > 0) {
+                tempLeads = tempLeads.filter(l => (l.tags || []).some(t => activeTagFilters.includes(t)));
             }
+
+            // Apply search query filter
+            if (leadSearchQuery) {
+                tempLeads = tempLeads.filter(l =>
+                    (l.name && l.name.toLowerCase().includes(leadSearchQuery)) ||
+                    (l.email && l.email.toLowerCase().includes(leadSearchQuery))
+                );
+            }
+
+            filteredLeads = tempLeads;
             renderLeadsTable();
         }
 
@@ -1979,7 +2004,7 @@
                             <div id="wiz-tags-container" class="relative"></div>
                         </div>
                         
-                        <p class="text-xs text-slate-400"><b class="text-cyan-400">${leadCount.toLocaleString()} lead(s)</b> serão incluídos nesta campanha</p>
+                        <p class="text-xs text-slate-400" id="wiz-lead-count-display"><b class="text-cyan-400">${leadCount.toLocaleString()} lead(s)</b> serão incluídos nesta campanha</p>
 
                         <div class="grid grid-cols-2 gap-4">
                             <div>
@@ -2049,9 +2074,23 @@
             }
 
             modal.innerHTML = content;
-            if (step === 2) initTagPicker('wiz-tags-container', wizardState.selectedTags);
+            if (step === 2) {
+                initTagPicker('wiz-tags-container', wizardState.selectedTags, (tags) => {
+                    wizardState.selectedTags = tags;
+                    updateWizLeadCountUI();
+                });
+            }
             document.getElementById('modalOverlay').classList.remove('hidden');
             document.getElementById('modalOverlay').classList.add('flex');
+        }
+
+        function updateWizLeadCountUI() {
+            const display = document.getElementById('wiz-lead-count-display');
+            if (!display) return;
+            const count = wizardState.selectedTags.length === 0 ?
+                wizardState.leads.length :
+                wizardState.leads.filter(l => (l.tags || []).some(t => wizardState.selectedTags.includes(t))).length;
+            display.innerHTML = `<b class="text-cyan-400">${count.toLocaleString()} lead(s)</b> serão incluídos nesta campanha`;
         }
 
         function filterWizTags() {
@@ -2382,7 +2421,7 @@
             } catch (err) { return []; }
         }
 
-        async function initTagPicker(containerId, initialTags = []) {
+        async function initTagPicker(containerId, initialTags = [], onChange = null) {
             const container = document.getElementById(containerId);
             const allTags = await fetchTags();
             let selectedTags = [...initialTags];
@@ -2412,6 +2451,7 @@
                     </div>
                 `;
                 container.dataset.tags = JSON.stringify(selectedTags);
+                if (onChange) onChange(selectedTags);
             }
 
             window.addTagToPicker = (cid, tag) => {
