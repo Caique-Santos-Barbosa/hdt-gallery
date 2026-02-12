@@ -380,16 +380,20 @@ async function runCampaignTask(campaignId) {
       socketTimeout: 15000      // 15s
     });
 
-    // Find where we left off (basic resilience)
+    // Find where we left off (basic resilience) - Only skip successfully SENT emails
     const logs = await storage.getLogs(campaignId);
-    const sentEmails = new Set(logs.map(l => l.email));
+    const sentEmails = new Set(logs.filter(l => l.status === 'sent').map(l => l.email));
+    console.log(`[Worker] Campaign ${campaignId}: ${sentEmails.size} already sent, ${targetLeads.length - sentEmails.size} remaining`);
 
     for (const lead of targetLeads) {
       if (!runningCampaigns.has(campaignId)) {
         console.log(`[Worker] Campaign ${campaignId}: Stopped manually`);
         break;
       }
-      if (sentEmails.has(lead.email)) continue; // Already sent
+      if (sentEmails.has(lead.email)) {
+        console.log(`[Worker] Campaign ${campaignId}: Skipping ${lead.email} (already sent)`);
+        continue;
+      }
 
       console.log(`[Worker] Campaign ${campaignId}: Sending to ${lead.email}`);
 
