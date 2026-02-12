@@ -1,4 +1,4 @@
-// HDT Conecte Server v1.1.1 - Update: 2026-02-12 02:54
+// HDT Conecte Server v1.1.2 - Update: 2026-02-12 02:56
 const express = require('express');
 const multer = require('multer');
 const path = require('path');
@@ -701,7 +701,7 @@ app.get('/api/t/u/:logId', async (req, res) => {
   }
 });
 
-app.get('/*', (req, res) => {
+app.use((req, res) => {
   res.sendFile(path.join(__dirname, 'public', 'index.html'));
 });
 
