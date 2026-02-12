@@ -394,6 +394,10 @@
 
                         <input type="file" id="importInput" accept=".csv,.xlsx" class="hidden"
                             onchange="importLeads(this)">
+                        <button onclick="openNewLeadModal()"
+                            class="px-6 py-3 bg-blue-600 text-white rounded-xl font-bold hover:bg-blue-700 transition-all shadow-lg shadow-blue-500/20 flex items-center gap-2">
+                            <i class="fas fa-plus"></i> Novo Lead
+                        </button>
                         <button onclick="document.getElementById('importInput').click()"
                             class="px-6 py-3 bg-cyan-500 text-white rounded-xl font-bold hover:bg-cyan-600 transition-all shadow-lg shadow-cyan-500/20 flex items-center gap-2">
                             <i class="fas fa-file-import"></i> Importar
@@ -995,6 +999,83 @@
             if (!confirm('Remover lead?')) return;
             await fetch(`/api/marketing/leads/${id}`, { method: 'DELETE' });
             loadLeads();
+        }
+
+        function openNewLeadModal() {
+            resetModal('max-w-2xl');
+            const modal = document.getElementById('modalContent');
+            modal.innerHTML = `
+                <div class="flex justify-between items-center mb-6">
+                    <h2 class="text-xl font-bold text-white">Novo Lead</h2>
+                    <button onclick="closeModal()" class="text-slate-400 hover:text-rose-400 p-2"><i class="fas fa-times text-xl"></i></button>
+                </div>
+                <div class="space-y-4">
+                    <div class="grid grid-cols-2 gap-4">
+                        <div>
+                            <label class="block text-xs font-bold text-slate-500 uppercase mb-2">Nome</label>
+                            <input type="text" id="new-lead-name" placeholder="Nome Completo" class="w-full bg-slate-900/50 border border-white/10 rounded-xl px-4 py-3 text-white outline-none focus:border-cyan-500">
+                        </div>
+                        <div>
+                            <label class="block text-xs font-bold text-slate-500 uppercase mb-2">Email</label>
+                            <input type="email" id="new-lead-email" placeholder="email@exemplo.com" class="w-full bg-slate-900/50 border border-white/10 rounded-xl px-4 py-3 text-white outline-none focus:border-cyan-500">
+                        </div>
+                    </div>
+                    <div class="grid grid-cols-2 gap-4">
+                        <div>
+                            <label class="block text-xs font-bold text-slate-500 uppercase mb-2">Telefone</label>
+                            <input type="text" id="new-lead-phone" placeholder="(00) 00000-0000" class="w-full bg-slate-900/50 border border-white/10 rounded-xl px-4 py-3 text-white outline-none focus:border-cyan-500">
+                        </div>
+                        <div>
+                            <label class="block text-xs font-bold text-slate-500 uppercase mb-2">Empresa</label>
+                            <input type="text" id="new-lead-company" placeholder="Nome da Empresa" class="w-full bg-slate-900/50 border border-white/10 rounded-xl px-4 py-3 text-white outline-none focus:border-cyan-500">
+                        </div>
+                    </div>
+                    <div class="grid grid-cols-2 gap-4">
+                        <div>
+                            <label class="block text-xs font-bold text-slate-500 uppercase mb-2">Cidade/UF</label>
+                            <input type="text" id="new-lead-city" placeholder="Cidade - UF" class="w-full bg-slate-900/50 border border-white/10 rounded-xl px-4 py-3 text-white outline-none focus:border-cyan-500">
+                        </div>
+                        <div>
+                            <label class="block text-xs font-bold text-slate-500 uppercase mb-2">CPF/CNPJ</label>
+                            <input type="text" id="new-lead-doc" placeholder="000.000.000-00" class="w-full bg-slate-900/50 border border-white/10 rounded-xl px-4 py-3 text-white outline-none focus:border-cyan-500">
+                        </div>
+                    </div>
+                    <div>
+                        <label class="block text-xs font-bold text-slate-500 uppercase mb-2">Tags (separadas por vírgula)</label>
+                        <input type="text" id="new-lead-tags" placeholder="tag1, tag2" class="w-full bg-slate-900/50 border border-white/10 rounded-xl px-4 py-3 text-white outline-none focus:border-cyan-500">
+                    </div>
+                    <button onclick="saveNewLead()" class="w-full py-4 bg-blue-600 text-white rounded-xl font-bold hover:bg-blue-700 transition-all shadow-lg shadow-blue-600/20">Cadastrar Lead</button>
+                </div>
+            `;
+        }
+
+        async function saveNewLead() {
+            const data = {
+                name: document.getElementById('new-lead-name').value,
+                email: document.getElementById('new-lead-email').value,
+                telefone: document.getElementById('new-lead-phone').value,
+                empresa: document.getElementById('new-lead-company').value,
+                cidade_uf: document.getElementById('new-lead-city').value,
+                cpf_cnpj: document.getElementById('new-lead-doc').value,
+                tags: document.getElementById('new-lead-tags').value.split(',').map(t => t.trim()).filter(Boolean)
+            };
+
+            if (!data.email) return showToast('Email é obrigatório', 'error');
+
+            try {
+                const res = await fetch('/api/marketing/leads', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(data)
+                });
+                if (res.ok) {
+                    showToast('Lead cadastrado com sucesso!');
+                    closeModal();
+                    loadLeads();
+                } else {
+                    showToast('Erro ao salvar lead', 'error');
+                }
+            } catch (err) { showToast('Erro no servidor', 'error'); }
         }
 
         async function editLead(lead) {
