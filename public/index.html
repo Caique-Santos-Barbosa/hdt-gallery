@@ -821,6 +821,12 @@
         let activeTagFilters = [];
         let tagSearchQuery = '';
 
+        // Campaign Logs View State
+        let currentLogs = [];
+        let filteredLogs = [];
+        let logPagination = { currentPage: 1, rowsPerPage: 50 };
+        let activeLogFilter = 'all';
+
         async function loadLeads() {
             try {
                 const response = await fetch('/api/marketing/leads');
@@ -1890,6 +1896,7 @@
                             `<button onclick="startCampaign('${c.id}')" class="px-4 py-2 bg-cyan-500/20 text-cyan-400 border border-cyan-500/20 rounded-xl text-xs font-bold hover:bg-cyan-500 hover:text-white transition-all">${c.status === 'scheduled' ? 'Antecipar' : 'Iniciar'}</button>`
                         }
                                 <div class="w-px h-8 bg-white/5 mx-2"></div>
+                                <button onclick="openLogsModal('${c.id}')" class="p-3 text-slate-500 hover:text-blue-400 hover:bg-blue-500/10 rounded-xl transition-all" title="Ver Logs da Campanha"><i class="fas fa-list-ul"></i></button>
                                 ${(c.status === 'pending' || c.status === 'scheduled' || c.status === 'paused') ? `<button onclick="editCampaign('${c.id}')" class="p-3 text-slate-500 hover:text-cyan-400 hover:bg-cyan-500/10 rounded-xl transition-all" title="Editar"><i class="fas fa-edit"></i></button>` : ''}
                                 <button onclick="deleteCampaign('${c.id}')" class="p-3 text-slate-500 hover:text-rose-400 hover:bg-rose-500/10 rounded-xl transition-all" title="Excluir"><i class="fas fa-trash"></i></button>
                             </div>
@@ -3326,6 +3333,169 @@
                 btn.disabled = false;
                 btn.innerText = originalText;
             }
+        }
+
+        // --- Campaign Logs ---
+        async function openLogsModal(campaignId) {
+            resetModal('max-w-5xl'); // Wide modal for logs
+            const modal = document.getElementById('modalContent');
+            modal.innerHTML = `
+                <div class="flex justify-between items-center mb-6">
+                    <div>
+                        <h2 class="text-xl font-bold text-white">Logs da Campanha</h2>
+                        <p class="text-xs text-slate-500 mt-1 uppercase tracking-widest font-bold" id="log-campaign-name">Carregando...</p>
+                    </div>
+                    <button onclick="closeModal()" class="text-slate-400 hover:text-rose-400 p-2 transition-all"><i class="fas fa-times text-xl"></i></button>
+                </div>
+
+                <div class="flex flex-col md:flex-row items-center justify-between gap-4 mb-6">
+                    <div class="flex items-center gap-2">
+                        <button onclick="filterLogs('all')" id="btn-log-all" class="px-4 py-2 rounded-xl text-xs font-bold transition-all bg-cyan-500 text-white shadow-lg shadow-cyan-500/20">Todos</button>
+                        <button onclick="filterLogs('sent')" id="btn-log-sent" class="px-4 py-2 rounded-xl text-xs font-bold transition-all bg-white/5 border border-white/10 text-slate-400 hover:text-white">Enviados</button>
+                        <button onclick="filterLogs('failed')" id="btn-log-failed" class="px-4 py-2 rounded-xl text-xs font-bold transition-all bg-white/5 border border-white/10 text-slate-400 hover:text-white">Falhas</button>
+                        <button onclick="filterLogs('opened')" id="btn-log-opened" class="px-4 py-2 rounded-xl text-xs font-bold transition-all bg-white/5 border border-white/10 text-slate-400 hover:text-white">Abertos</button>
+                        <button onclick="filterLogs('clicked')" id="btn-log-clicked" class="px-4 py-2 rounded-xl text-xs font-bold transition-all bg-white/5 border border-white/10 text-slate-400 hover:text-white">Cliques</button>
+                    </div>
+                    <div class="flex items-center gap-2">
+                        <span class="text-[10px] text-slate-500 uppercase font-bold">Mostrar</span>
+                        <select id="logs-per-page" onchange="changeLogRowsPerPage(this.value)" class="bg-slate-900 border border-white/10 rounded-lg px-3 py-1 text-xs text-white outline-none focus:border-cyan-500 cursor-pointer">
+                            <option value="50">50</option>
+                            <option value="100">100</option>
+                            <option value="250">250</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div class="glass rounded-3xl overflow-hidden border border-white/5">
+                    <table class="w-full text-left">
+                        <thead class="bg-white/5 border-b border-white/10">
+                            <tr>
+                                <th class="px-6 py-4 font-bold text-slate-400 text-[10px] uppercase tracking-widest">Data/Hora</th>
+                                <th class="px-6 py-4 font-bold text-slate-400 text-[10px] uppercase tracking-widest">Email</th>
+                                <th class="px-6 py-4 font-bold text-slate-400 text-[10px] uppercase tracking-widest">Status</th>
+                                <th class="px-6 py-4 font-bold text-slate-400 text-[10px] uppercase tracking-widest">Detalhes</th>
+                            </tr>
+                        </thead>
+                        <tbody id="logsTableBody" class="divide-y divide-white/5">
+                            <tr><td colspan="4" class="p-12 text-center text-slate-500">Buscando logs...</td></tr>
+                        </tbody>
+                    </table>
+                    <div class="bg-white/5 px-6 py-4 flex items-center justify-between border-t border-white/10" id="log-pagination">
+                        <!-- Pagination here -->
+                    </div>
+                </div>
+            `;
+
+            try {
+                // Fetch campaign details to show name
+                const campaigns = await (await fetch('/api/marketing/campaigns')).json();
+                const campaign = campaigns.find(c => c.id === campaignId);
+                if (campaign) document.getElementById('log-campaign-name').innerText = campaign.name;
+
+                const res = await fetch(`/api/marketing/campaigns/${campaignId}/logs`);
+                currentLogs = await res.json();
+                currentLogs.sort((a, b) => new Date(b.sentAt) - new Date(a.sentAt));
+
+                filteredLogs = [...currentLogs];
+                logPagination.currentPage = 1;
+                renderLogsTable();
+            } catch (err) {
+                showToast('Erro ao carregar logs', 'error');
+            }
+        }
+
+        function filterLogs(status) {
+            activeLogFilter = status;
+            // Update UI buttons
+            ['all', 'sent', 'failed', 'opened', 'clicked'].forEach(s => {
+                const btn = document.getElementById(`btn-log-${s}`);
+                if (!btn) return;
+                if (s === status) {
+                    btn.className = "px-4 py-2 rounded-xl text-xs font-bold transition-all bg-cyan-500 text-white shadow-lg shadow-cyan-500/20";
+                } else {
+                    btn.className = "px-4 py-2 rounded-xl text-xs font-bold transition-all bg-white/5 border border-white/10 text-slate-400 hover:text-white";
+                }
+            });
+
+            if (status === 'all') {
+                filteredLogs = [...currentLogs];
+            } else if (status === 'opened') {
+                filteredLogs = currentLogs.filter(l => l.openedAt);
+            } else if (status === 'clicked') {
+                filteredLogs = currentLogs.filter(l => l.lastClickedAt || (l.clicks && l.clicks.length > 0));
+            } else {
+                filteredLogs = currentLogs.filter(l => l.status === status);
+            }
+
+            logPagination.currentPage = 1;
+            renderLogsTable();
+        }
+
+        function renderLogsTable() {
+            const tableBody = document.getElementById('logsTableBody');
+            const startIndex = (logPagination.currentPage - 1) * logPagination.rowsPerPage;
+            const endIndex = startIndex + logPagination.rowsPerPage;
+            const pagedLogs = filteredLogs.slice(startIndex, endIndex);
+
+            if (pagedLogs.length === 0) {
+                tableBody.innerHTML = '<tr><td colspan="4" class="p-12 text-center text-slate-500">Nenhum log encontrado para este filtro.</td></tr>';
+                document.getElementById('log-pagination').innerHTML = '';
+                return;
+            }
+
+            tableBody.innerHTML = pagedLogs.map(l => {
+                let statusHtml = '';
+                if (l.status === 'sent') {
+                    statusHtml = `<span class="px-2 py-0.5 bg-green-500/20 text-green-400 rounded-lg text-[9px] uppercase font-bold border border-green-500/20">Enviado</span>`;
+                } else {
+                    statusHtml = `<span class="px-2 py-0.5 bg-rose-500/20 text-rose-400 rounded-lg text-[9px] uppercase font-bold border border-rose-500/20">Falhou</span>`;
+                }
+
+                if (l.openedAt) statusHtml += ` <span class="px-2 py-0.5 bg-cyan-500/20 text-cyan-400 rounded-lg text-[9px] uppercase font-bold ml-1 border border-cyan-500/20">Aberto</span>`;
+                if (l.lastClickedAt || (l.clicks && l.clicks.length > 0)) statusHtml += ` <span class="px-2 py-0.5 bg-blue-500/20 text-blue-400 rounded-lg text-[9px] uppercase font-bold ml-1 border border-blue-500/20">Clicou</span>`;
+
+                const dateStr = new Date(l.sentAt).toLocaleString();
+                const details = l.errorMsg ? `<span class="text-rose-400/80">${l.errorMsg}</span>` : `<span class="text-slate-500">Sucesso no disparo</span>`;
+
+                return `
+                    <tr class="hover:bg-white/5 transition-colors">
+                        <td class="px-6 py-4 text-[10px] text-slate-500 font-medium">${dateStr}</td>
+                        <td class="px-6 py-4 text-xs text-white font-bold">${l.email}</td>
+                        <td class="px-6 py-4">${statusHtml}</td>
+                        <td class="px-6 py-4 text-[10px] max-w-xs truncate text-slate-400" title="${l.errorMsg || 'Sucesso'}">${details}</td>
+                    </tr>
+                `;
+            }).join('');
+
+            renderLogPagination();
+        }
+
+        function renderLogPagination() {
+            const totalPages = Math.ceil(filteredLogs.length / logPagination.rowsPerPage);
+            const container = document.getElementById('log-pagination');
+
+            const startRange = (logPagination.currentPage - 1) * logPagination.rowsPerPage + 1;
+            const endRange = Math.min(logPagination.currentPage * logPagination.rowsPerPage, filteredLogs.length);
+
+            container.innerHTML = `
+                <span class="text-[10px] text-slate-500 font-bold uppercase tracking-widest">Mostrando ${startRange}-${endRange} de ${filteredLogs.length}</span>
+                <div class="flex items-center gap-2">
+                    <button onclick="changeLogPage(${logPagination.currentPage - 1})" ${logPagination.currentPage === 1 ? 'disabled' : ''} class="w-10 h-10 flex items-center justify-center rounded-xl bg-white/5 border border-white/10 text-slate-400 disabled:opacity-20 hover:text-white transition-all"><i class="fas fa-chevron-left text-xs"></i></button>
+                    <span class="text-xs font-bold text-white bg-white/5 px-3 py-2 rounded-xl border border-white/10">${logPagination.currentPage} / ${totalPages}</span>
+                    <button onclick="changeLogPage(${logPagination.currentPage + 1})" ${logPagination.currentPage === totalPages ? 'disabled' : ''} class="w-10 h-10 flex items-center justify-center rounded-xl bg-white/5 border border-white/10 text-slate-400 disabled:opacity-20 hover:text-white transition-all"><i class="fas fa-chevron-right text-xs"></i></button>
+                </div>
+            `;
+        }
+
+        function changeLogPage(page) {
+            logPagination.currentPage = page;
+            renderLogsTable();
+        }
+
+        function changeLogRowsPerPage(val) {
+            logPagination.rowsPerPage = parseInt(val);
+            logPagination.currentPage = 1;
+            renderLogsTable();
         }
 
         window.closeModal = closeModal;
