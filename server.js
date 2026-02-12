@@ -399,6 +399,7 @@ async function runCampaignTask(campaignId) {
 
     const allLeads = await storage.getLeads();
     const targetLeads = allLeads.filter(l => {
+      if (l.status === 'unsubscribed') return false;
       if (!campaign.targetTags || campaign.targetTags.length === 0) return true;
       return campaign.targetTags.some(t => (l.tags || []).includes(t));
     });
@@ -438,6 +439,7 @@ async function runCampaignTask(campaignId) {
           html = html.replace(/\{\{email\}\}/gi, lead.email);
           html = html.replace(/\{\{company\}\}/gi, lead.empresa || '');
           html = html.replace(/\{\{button_link\}\}/gi, campaign.buttonLink || '#');
+          html = html.replace(/\{\{unsubscribe_link\}\}/gi, `${baseUrl}/api/t/u/${logId}`);
 
           html += `<img src="${baseUrl}/api/t/o/${logId}" width="1" height="1" style="display:none">`;
           html = html.replace(/href="([^"]+)"/gi, (match, url) => {
@@ -559,6 +561,7 @@ async function runCampaignTask(campaignId) {
         html = html.replace(/\{\{email\}\}/gi, lead.email);
         html = html.replace(/\{\{company\}\}/gi, lead.empresa || '');
         html = html.replace(/\{\{button_link\}\}/gi, campaign.buttonLink || '#');
+        html = html.replace(/\{\{unsubscribe_link\}\}/gi, `${baseUrl}/api/t/u/${logId}`);
         html += `<img src="${baseUrl}/api/t/o/${logId}" width="1" height="1" style="display:none">`;
         html = html.replace(/href="([^"]+)"/gi, (match, url) => {
           if (url.startsWith('http') && !url.includes('/api/t/c/')) {
@@ -677,7 +680,27 @@ app.post('/api/webhooks/resend', async (req, res) => {
   }
 });
 
-// Serve frontend for all other routes
+// --- TRACKING & UNSUBSCRIBE ---
+
+app.get('/api/t/u/:logId', async (req, res) => {
+  const { logId } = req.params;
+  const success = await storage.unsubscribeLead(logId);
+  if (success) {
+    res.send(`
+      <div style="font-family: Arial, sans-serif; text-align: center; padding: 50px; background-color: #0c0e1a; color: white; height: 100vh; display: flex; flex-direction: column; justify-content: center; align-items: center;">
+        <h1 style="color: #ff4444; font-size: 48px; margin-bottom: 20px;">✓</h1>
+        <h2 style="margin-bottom: 10px;">Você foi descadastrado com sucesso</h2>
+        <p style="color: #94a3b8;">Lamentamos ver você partir. Você não receberá mais e-mails desta campanha.</p>
+        <div style="margin-top: 30px; border: 1px solid #1e293b; padding: 20px; border-radius: 15px; background: #111827;">
+          <img src="https://hdt.energy/wp-content/uploads/2023/10/logo-hdt-energy.png" width="150" alt="HDT Energy">
+        </div>
+      </div>
+    `);
+  } else {
+    res.status(404).send('Link inválido ou expirado.');
+  }
+});
+
 app.get('*', (req, res) => {
   res.sendFile(path.join(__dirname, 'public', 'index.html'));
 });

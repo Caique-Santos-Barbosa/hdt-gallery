@@ -360,6 +360,24 @@ const storage = {
         await saveDb(db);
         return { log, campaign };
     },
+    async unsubscribeLead(logId) {
+        const db = await getDb();
+        const log = db.logs.find(l => l.id === logId);
+        if (!log) return null;
+
+        const leadIndex = db.leads.findIndex(l => l.id === log.leadId || l.email === log.email);
+        if (leadIndex > -1) {
+            db.leads[leadIndex].status = 'unsubscribed';
+        }
+
+        const campIndex = db.campaigns.findIndex(c => c.id === log.campaignId);
+        if (campIndex > -1) {
+            db.campaigns[campIndex].unsubscribeCount = (db.campaigns[campIndex].unsubscribeCount || 0) + 1;
+        }
+
+        await saveDb(db);
+        return true;
+    },
     async clearCampaignLogs(campaignId) {
         const db = await getDb();
         db.logs = db.logs.filter(l => l.campaignId !== campaignId);
