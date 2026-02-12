@@ -1,4 +1,4 @@
-// HDT Conecte Server v1.0.7 - Update: 2026-02-12 00:09
+// HDT Conecte Server v1.0.8 - Update: 2026-02-12 00:27
 const express = require('express');
 const multer = require('multer');
 const path = require('path');
@@ -467,13 +467,43 @@ app.post('/api/marketing/campaigns/:id/start', async (req, res) => {
 });
 
 app.post('/api/marketing/campaigns/:id/stop', async (req, res) => {
+  const { id } = req.params;
+  runningCampaigns.delete(id);
   const campaigns = await storage.getCampaigns();
-  const c = campaigns.find(item => item.id === req.params.id);
-  if (c) {
-    await storage.saveCampaign({ ...c, status: 'paused' });
-    runningCampaigns.delete(req.params.id);
+  const campaign = campaigns.find(c => c.id === id);
+  if (campaign) {
+    await storage.saveCampaign({ ...campaign, status: 'paused' });
   }
   res.json({ success: true });
+});
+
+app.post('/api/marketing/campaigns/:id/restart', async (req, res) => {
+  const { id } = req.params;
+  try {
+    const campaigns = await storage.getCampaigns();
+    const campaign = campaigns.find(c => c.id === id);
+    if (!campaign) return res.status(404).json({ error: 'Campaign not found' });
+
+    // Reset progress
+    campaign.sentCount = 0;
+    campaign.failedCount = 0;
+    campaign.openCount = 0;
+    campaign.clickCount = 0;
+    campaign.status = 'paused'; // Set to paused first to ensure worker doesn't pick it up mid-reset
+    await storage.saveCampaign(campaign);
+
+    // Clear logs for this campaign
+    const db = await storage.getDb();
+    db.logs = db.logs.filter(l => l.campaignId !== id);
+    await storage.saveDb(db);
+
+    // Set to running to start over
+    await storage.saveCampaign({ ...campaign, status: 'running' });
+
+    res.json({ success: true });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
 });
 
 // App Start - Catch-all route for SPA

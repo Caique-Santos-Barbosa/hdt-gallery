@@ -1918,7 +1918,7 @@
                             <div class="flex items-center gap-2">
                                 ${c.status === 'running' ?
                             `<button onclick="stopCampaign('${c.id}')" class="px-4 py-2 bg-rose-500/20 text-rose-400 border border-rose-500/20 rounded-xl text-xs font-bold hover:bg-rose-500 hover:text-white transition-all">Parar</button>` :
-                            `<button onclick="startCampaign('${c.id}')" class="px-4 py-2 bg-cyan-500/20 text-cyan-400 border border-cyan-500/20 rounded-xl text-xs font-bold hover:bg-cyan-500 hover:text-white transition-all">${c.status === 'scheduled' ? 'Antecipar' : 'Iniciar'}</button>`
+                            `<button onclick="startCampaign('${c.id}', '${c.status}')" class="px-4 py-2 bg-cyan-500/20 text-cyan-400 border border-cyan-500/20 rounded-xl text-xs font-bold hover:bg-cyan-500 hover:text-white transition-all">${c.status === 'scheduled' ? 'Antecipar' : (c.status === 'completed' ? 'Reiniciar' : 'Iniciar')}</button>`
                         }
                                 <div class="w-px h-8 bg-white/5 mx-2"></div>
                                 <button onclick="openLogsModal('${c.id}')" class="p-3 text-slate-500 hover:text-blue-400 hover:bg-blue-500/10 rounded-xl transition-all" title="Ver Logs da Campanha"><i class="fas fa-list-ul"></i></button>
@@ -2151,6 +2151,10 @@
 
         async function saveCampaign() {
             const isEdit = !!wizardState.editingId;
+            const leadCount = wizardState.selectedTags.length === 0 ?
+                wizardState.leads.length :
+                wizardState.leads.filter(l => (l.tags || []).some(t => wizardState.selectedTags.includes(t))).length;
+
             const data = {
                 name: wizardState.data.name,
                 templateId: wizardState.data.templateId,
@@ -2159,6 +2163,7 @@
                 status: wizardState.data.scheduledAt ? 'scheduled' : 'pending',
                 interval: wizardState.data.interval,
                 scheduledAt: wizardState.data.scheduledAt,
+                totalLeads: leadCount,
                 createdBy: currentUser ? currentUser.name : 'Sistema'
             };
 
@@ -2186,9 +2191,20 @@
             loadCampaigns();
         }
 
-        async function startCampaign(id) {
+        async function startCampaign(id, status = '') {
+            if (status === 'completed') {
+                if (!confirm('Deseja realmente reenviar esta campanha? Todo o progresso de envio, abertura e cliques será zerado para os leads selecionados.')) return;
+                return restartCampaign(id);
+            }
             await fetch(`/api/marketing/campaigns/${id}/start`, { method: 'POST' });
             showToast('Campanha iniciada!', 'info');
+            loadCampaigns();
+        }
+
+        async function restartCampaign(id) {
+            showToast('Reiniciando campanha...', 'info');
+            await fetch(`/api/marketing/campaigns/${id}/restart`, { method: 'POST' });
+            showToast('Campanha reiniciada!');
             loadCampaigns();
         }
 
