@@ -1,4 +1,4 @@
-// HDT Conecte Server v1.1.2 - Update: 2026-02-12 02:56
+// HDT Conecte Server v1.1.3 - Update: 2026-02-12 03:13
 const express = require('express');
 const multer = require('multer');
 const path = require('path');
@@ -434,7 +434,7 @@ async function runCampaignTask(campaignId) {
 
         const emailBatch = batch.map(lead => {
           const logId = Date.now() + Math.random().toString(36).substr(2, 9);
-          const baseUrl = config.baseUrl || 'http://localhost:3000';
+          const baseUrl = config.baseUrl || 'https://hdtconecte.hdt.energy';
           let html = template.htmlContent.replace(/\{\{name\}\}/gi, lead.name || '');
           html = html.replace(/\{\{email\}\}/gi, lead.email);
           html = html.replace(/\{\{company\}\}/gi, lead.empresa || '');
@@ -556,7 +556,7 @@ async function runCampaignTask(campaignId) {
         if (!runningCampaigns.has(campaignId)) break;
 
         const logId = Date.now() + Math.random().toString(36).substr(2, 9);
-        const baseUrl = config.baseUrl || 'http://localhost:3000';
+        const baseUrl = config.baseUrl || 'https://hdtconecte.hdt.energy';
         let html = template.htmlContent.replace(/\{\{name\}\}/gi, lead.name || '');
         html = html.replace(/\{\{email\}\}/gi, lead.email);
         html = html.replace(/\{\{company\}\}/gi, lead.empresa || '');
