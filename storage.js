@@ -15,6 +15,8 @@ const defaultDb = {
         smtpPassword: '',
         smtpIgnoreCertErrors: false,
         smtpForceSecure: 'auto', // 'auto', 'true', 'false'
+        resendApiKey: 're_ALtAvuYB_3NLwVzeetWhuN6Q9AdtakEkZ',
+        resendDomain: '',
         baseUrl: ''
     },
     leads: [],

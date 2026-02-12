@@ -9,6 +9,7 @@ const nodemailer = require('nodemailer');
 const { parse } = require('csv-parse/sync');
 const XLSX = require('xlsx');
 const { storage, initDb } = require('./storage');
+const https = require('https');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -18,6 +19,14 @@ app.use(cors());
 app.use(express.json({ limit: '50mb' }));
 app.use(express.urlencoded({ limit: '50mb', extended: true }));
 app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
+
+function chunkArray(array, size) {
+  const result = [];
+  for (let i = 0; i < array.length; i += size) {
+    result.push(array.slice(i, i + size));
+  }
+  return result;
+}
 
 // Ensure uploads directory exists
 fs.ensureDirSync(path.join(__dirname, 'uploads'));
@@ -108,6 +117,43 @@ app.post('/api/marketing/config', async (req, res) => res.json(await storage.upd
 
 app.post('/api/marketing/config/test', async (req, res) => {
   const config = req.body;
+  if (config.method === 'resend') {
+    const postData = JSON.stringify({
+      from: `${config.senderName} <contact@${config.resendDomain}>`,
+      to: config.senderEmail,
+      subject: 'Teste de Conexão Resend',
+      html: '<p>Sua configuração do Resend está funcionando corretamente!</p>'
+    });
+
+    const options = {
+      hostname: 'api.resend.com',
+      port: 443,
+      path: '/emails',
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${config.resendApiKey}`
+      }
+    };
+
+    const apiReq = https.request(options, (apiRes) => {
+      let data = '';
+      apiRes.on('data', (chunk) => data += chunk);
+      apiRes.on('end', () => {
+        if (apiRes.statusCode === 200 || apiRes.statusCode === 201) {
+          res.json({ success: true });
+        } else {
+          res.json({ success: false, error: `Resend API Error: ${apiRes.statusCode} - ${data}` });
+        }
+      });
+    });
+
+    apiReq.on('error', (e) => res.json({ success: false, error: e.message }));
+    apiReq.write(postData);
+    apiReq.end();
+    return;
+  }
+
   const transporter = nodemailer.createTransport({
     host: config.smtpHost,
     port: config.smtpPort,
@@ -369,77 +415,141 @@ async function runCampaignTask(campaignId) {
       return;
     }
 
-    console.log(`[Worker] Campaign ${campaignId}: Starting mail transporter`);
-    const smtpSecure = config.smtpForceSecure === 'true' ? true : (config.smtpForceSecure === 'false' ? false : (config.smtpPort === 465));
-    console.log(`[Worker] Campaign ${campaignId}: SMTP Config: host=${config.smtpHost}, port=${config.smtpPort}, secure=${smtpSecure}, rejectUnauthorized=${config.smtpIgnoreCertErrors || false}`);
-
-    const transporter = nodemailer.createTransport({
-      host: config.smtpHost,
-      port: config.smtpPort,
-      secure: smtpSecure,
-      auth: {
-        user: config.senderEmail,
-        pass: config.smtpPassword
-      },
-      tls: {
-        rejectUnauthorized: config.smtpIgnoreCertErrors || false
-      },
-      connectionTimeout: 15000, // 15s
-      greetingTimeout: 15000,   // 15s
-      socketTimeout: 20000      // 20s
-    });
-
     // Find where we left off (basic resilience) - Only skip successfully SENT emails
     const logs = await storage.getLogs(campaignId);
     const sentEmails = new Set(logs.filter(l => l.status === 'sent').map(l => l.email));
     console.log(`[Worker] Campaign ${campaignId}: ${sentEmails.size} already sent, ${targetLeads.length - sentEmails.size} remaining`);
 
-    for (const lead of targetLeads) {
-      if (!runningCampaigns.has(campaignId)) {
-        console.log(`[Worker] Campaign ${campaignId}: Stopped manually`);
-        break;
-      }
-      if (sentEmails.has(lead.email)) {
-        console.log(`[Worker] Campaign ${campaignId}: Skipping ${lead.email} (already sent)`);
-        continue;
-      }
+    const leadsToSend = targetLeads.filter(l => !sentEmails.has(l.email));
 
-      console.log(`[Worker] Campaign ${campaignId}: Sending to ${lead.email}`);
+    if (config.method === 'resend' && leadsToSend.length > 0) {
+      console.log(`[Worker] Campaign ${campaignId}: Using Resend Batch API`);
+      const batches = chunkArray(leadsToSend, 100);
 
-      let html = template.htmlContent.replace(/\{\{name\}\}/gi, lead.name || '');
-      html = html.replace(/\{\{email\}\}/gi, lead.email);
-      html = html.replace(/\{\{company\}\}/gi, lead.empresa || '');
-      html = html.replace(/\{\{button_link\}\}/gi, campaign.buttonLink || '#');
+      for (const batch of batches) {
+        if (!runningCampaigns.has(campaignId)) break;
 
-      const logId = Date.now() + Math.random().toString(36).substr(2, 9);
-      const baseUrl = config.baseUrl || 'http://localhost:3000';
+        const emailBatch = batch.map(lead => {
+          const logId = Date.now() + Math.random().toString(36).substr(2, 9);
+          const baseUrl = config.baseUrl || 'http://localhost:3000';
+          let html = template.htmlContent.replace(/\{\{name\}\}/gi, lead.name || '');
+          html = html.replace(/\{\{email\}\}/gi, lead.email);
+          html = html.replace(/\{\{company\}\}/gi, lead.empresa || '');
+          html = html.replace(/\{\{button_link\}\}/gi, campaign.buttonLink || '#');
 
-      html += `<img src="${baseUrl}/api/t/o/${logId}" width="1" height="1" style="display:none">`;
+          html += `<img src="${baseUrl}/api/t/o/${logId}" width="1" height="1" style="display:none">`;
+          html = html.replace(/href="([^"]+)"/gi, (match, url) => {
+            if (url.startsWith('http') && !url.includes('/api/t/c/')) {
+              return `href="${baseUrl}/api/t/c/${logId}?u=${encodeURIComponent(url)}&cid=${campaignId}"`;
+            }
+            return match;
+          });
 
-      html = html.replace(/href="([^"]+)"/gi, (match, url) => {
-        if (url.startsWith('http') && !url.includes('/api/t/c/')) {
-          return `href="${baseUrl}/api/t/c/${logId}?u=${encodeURIComponent(url)}&cid=${campaignId}"`;
+          return {
+            from: `${campaign.senderName || config.senderName} <contact@${config.resendDomain}>`,
+            to: lead.email,
+            subject: campaign.subject,
+            html: html,
+            metadata: { logId, leadId: lead.id } // For local tracking after send
+          };
+        });
+
+        try {
+          const postData = JSON.stringify(emailBatch.map(e => ({
+            from: e.from,
+            to: e.to,
+            subject: e.subject,
+            html: e.html
+          })));
+
+          await new Promise((resolve, reject) => {
+            const options = {
+              hostname: 'api.resend.com',
+              port: 443,
+              path: '/emails/batch',
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${config.resendApiKey}`
+              }
+            };
+            const apiReq = https.request(options, (apiRes) => {
+              let resBody = '';
+              apiRes.on('data', d => resBody += d);
+              apiRes.on('end', () => {
+                if (apiRes.statusCode === 200 || apiRes.statusCode === 201) resolve();
+                else reject(new Error(`Resend Batch Error ${apiRes.statusCode}: ${resBody}`));
+              });
+            });
+            apiReq.on('error', reject);
+            apiReq.write(postData);
+            apiReq.end();
+          });
+
+          // Log successes
+          for (const e of emailBatch) {
+            await storage.addLog({ id: e.metadata.logId, campaignId, leadId: e.metadata.leadId, email: e.to, status: 'sent' });
+          }
+          console.log(`[Worker] Campaign ${campaignId}: Sent batch of ${emailBatch.length} emails`);
+        } catch (err) {
+          console.error(`[Worker] Campaign ${campaignId}: Batch failed:`, err.message);
+          for (const e of emailBatch) {
+            await storage.addLog({ id: e.metadata.logId, campaignId, leadId: e.metadata.leadId, email: e.to, status: 'failed', errorMsg: err.message });
+          }
         }
-        return match;
+
+        // Wait a small interval between batches (e.g., 1s as recommended for rate limits)
+        await new Promise(r => setTimeout(r, 1000));
+      }
+    } else {
+      // SMTP logic (Sequential)
+      let transporter = null;
+      console.log(`[Worker] Campaign ${campaignId}: Starting mail transporter (SMTP)`);
+      const smtpSecure = config.smtpForceSecure === 'true' ? true : (config.smtpForceSecure === 'false' ? false : (config.smtpPort === 465));
+      transporter = nodemailer.createTransport({
+        host: config.smtpHost,
+        port: config.smtpPort,
+        secure: smtpSecure,
+        auth: {
+          user: config.senderEmail,
+          pass: config.smtpPassword
+        },
+        tls: { rejectUnauthorized: config.smtpIgnoreCertErrors || false },
+        connectionTimeout: 15000,
+        greetingTimeout: 15000,
+        socketTimeout: 20000
       });
 
-      try {
-        await transporter.sendMail({
-          from: `"${campaign.senderName || config.senderName}" <${config.senderEmail}>`,
-          to: lead.email,
-          subject: campaign.subject,
-          html: html
-        });
-        console.log(`[Worker] Campaign ${campaignId}: Successfully sent to ${lead.email}`);
-        await storage.addLog({ id: logId, campaignId, leadId: lead.id, email: lead.email, status: 'sent' });
-      } catch (err) {
-        console.error(`[Worker] Campaign ${campaignId}: Failed to send to ${lead.email}:`, err.message);
-        await storage.addLog({ id: logId, campaignId, leadId: lead.id, email: lead.email, status: 'failed', errorMsg: err.message });
-      }
+      for (const lead of leadsToSend) {
+        if (!runningCampaigns.has(campaignId)) break;
 
-      const interval = (campaign.interval || 60) * 1000;
-      console.log(`[Worker] Campaign ${campaignId}: Waiting ${interval / 1000}s for next lead...`);
-      await new Promise(r => setTimeout(r, interval));
+        const logId = Date.now() + Math.random().toString(36).substr(2, 9);
+        const baseUrl = config.baseUrl || 'http://localhost:3000';
+        let html = template.htmlContent.replace(/\{\{name\}\}/gi, lead.name || '');
+        html = html.replace(/\{\{email\}\}/gi, lead.email);
+        html = html.replace(/\{\{company\}\}/gi, lead.empresa || '');
+        html = html.replace(/\{\{button_link\}\}/gi, campaign.buttonLink || '#');
+        html += `<img src="${baseUrl}/api/t/o/${logId}" width="1" height="1" style="display:none">`;
+        html = html.replace(/href="([^"]+)"/gi, (match, url) => {
+          if (url.startsWith('http') && !url.includes('/api/t/c/')) {
+            return `href="${baseUrl}/api/t/c/${logId}?u=${encodeURIComponent(url)}&cid=${campaignId}"`;
+          }
+          return match;
+        });
+
+        try {
+          await transporter.sendMail({
+            from: `"${campaign.senderName || config.senderName}" <${config.senderEmail}>`,
+            to: lead.email,
+            subject: campaign.subject,
+            html: html
+          });
+          await storage.addLog({ id: logId, campaignId, leadId: lead.id, email: lead.email, status: 'sent' });
+        } catch (err) {
+          await storage.addLog({ id: logId, campaignId, leadId: lead.id, email: lead.email, status: 'failed', errorMsg: err.message });
+        }
+        await new Promise(r => setTimeout(r, (campaign.interval || 60) * 1000));
+      }
     }
 
     // Refresh and check if all are sent

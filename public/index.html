@@ -549,61 +549,94 @@
 
                             <label
                                 class="flex items-center gap-4 p-4 bg-slate-900/50 border border-white/10 rounded-2xl cursor-pointer hover:border-cyan-500/50 transition-all group has-[:checked]:border-cyan-500 has-[:checked]:bg-cyan-500/5">
-                                <input type="radio" name="send-method" value="graph" class="w-5 h-5 accent-cyan-500">
+                                <input type="radio" name="send-method" value="resend" class="w-5 h-5 accent-cyan-500"
+                                    onchange="toggleConfigMethod()">
                                 <div>
-                                    <p class="font-bold text-white">Microsoft Graph API</p>
-                                    <p class="text-xs text-slate-400">Para contas Office 365. Maior entregabilidade via
-                                        OAuth.</p>
+                                    <p class="font-bold text-white">Resend API (Recomendado)</p>
+                                    <p class="text-xs text-slate-400">Entrega profissional via API. Maior taxa de
+                                        abertura.</p>
+                                </div>
+                            </label>
+
+                            <label
+                                class="flex items-center gap-4 p-4 bg-slate-900/50 border border-white/10 rounded-2xl cursor-pointer hover:border-cyan-500/50 transition-all group has-[:checked]:border-cyan-500 has-[:checked]:bg-cyan-500/5">
+                                <input type="radio" name="send-method" value="smtp" class="w-5 h-5 accent-cyan-500"
+                                    onchange="toggleConfigMethod()">
+                                <div>
+                                    <p class="font-bold text-white">Servidor SMTP</p>
+                                    <p class="text-xs text-slate-400">Configure seu próprio servidor (Gmail, Outlook,
+                                        Hostinger).</p>
                                 </div>
                             </label>
                         </div>
 
-                        <div class="grid grid-cols-1 md:grid-cols-3 gap-6 pt-4">
-                            <div class="md:col-span-2">
-                                <label class="block text-sm font-bold text-slate-400 mb-2">Servidor SMTP</label>
-                                <input type="text" id="set-host" placeholder="smtp.office365.com"
-                                    class="w-full bg-slate-900/50 border border-white/10 rounded-xl px-4 py-3 text-white focus:border-cyan-500 transition-all outline-none">
-                                <p class="text-[10px] text-slate-500 mt-2">Ex: smtp.gmail.com, smtp.office365.com</p>
+                        <div id="smtp-config" class="space-y-6">
+                            <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+                                <div class="md:col-span-2">
+                                    <label class="block text-sm font-bold text-slate-400 mb-2">Servidor SMTP</label>
+                                    <input type="text" id="set-host" placeholder="smtp.office365.com"
+                                        class="w-full bg-slate-900/50 border border-white/10 rounded-xl px-4 py-3 text-white focus:border-cyan-500 transition-all outline-none">
+                                    <p class="text-[10px] text-slate-500 mt-2">Ex: smtp.gmail.com, smtp.office365.com
+                                    </p>
+                                </div>
+                                <div>
+                                    <label class="block text-sm font-bold text-slate-400 mb-2">Porta</label>
+                                    <input type="number" id="set-port" placeholder="587"
+                                        class="w-full bg-slate-900/50 border border-white/10 rounded-xl px-4 py-3 text-white focus:border-cyan-500 transition-all outline-none">
+                                    <p class="text-[10px] text-slate-500 mt-2">587 (TLS) ou 465 (SSL)</p>
+                                </div>
                             </div>
+
+                            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                                <div>
+                                    <label class="block text-sm font-bold text-slate-400 mb-2">Segurança
+                                        (SSL/TLS)</label>
+                                    <select id="set-forceSecure"
+                                        class="w-full bg-slate-900/50 border border-white/10 rounded-xl px-4 py-3 text-white focus:border-cyan-500 transition-all outline-none">
+                                        <option value="auto">Automático (Padrão)</option>
+                                        <option value="true">Forçar SSL/TLS (Implicit)</option>
+                                        <option value="false">Desativar SSL Direto (STARTTLS)</option>
+                                    </select>
+                                    <p class="text-[10px] text-slate-500 mt-2">Padrão: Porta 465 usa SSL, 587 usa
+                                        STARTTLS.</p>
+                                </div>
+                                <div>
+                                    <label class="block text-sm font-bold text-slate-400 mb-2">Certificado SSL</label>
+                                    <label
+                                        class="flex items-center gap-3 p-3 bg-slate-900/50 border border-white/10 rounded-xl cursor-pointer hover:border-cyan-500/50 transition-all">
+                                        <input type="checkbox" id="set-ignoreCert" class="w-4 h-4 accent-cyan-500">
+                                        <span class="text-xs text-slate-300">Ignorar erros de certificado
+                                            (Inseguro)</span>
+                                    </label>
+                                    <p class="text-[10px] text-rose-400/70 mt-2 italic">Use apenas se o seu servidor
+                                        SMTP tiver certificado auto-assinado ou expirado.</p>
+                                </div>
+                            </div>
+
                             <div>
-                                <label class="block text-sm font-bold text-slate-400 mb-2">Porta</label>
-                                <input type="number" id="set-port" placeholder="587"
+                                <label class="block text-sm font-bold text-slate-400 mb-2">Senha / Senha de
+                                    Aplicativo</label>
+                                <input type="password" id="set-pass" placeholder="••••••••••••••••"
                                     class="w-full bg-slate-900/50 border border-white/10 rounded-xl px-4 py-3 text-white focus:border-cyan-500 transition-all outline-none">
-                                <p class="text-[10px] text-slate-500 mt-2">587 (TLS) ou 465 (SSL)</p>
+                                <p class="text-[10px] text-slate-500 mt-2">Use senhas de aplicativo se estiver usando
+                                    Gmail ou Outlook.</p>
                             </div>
                         </div>
 
-                        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                        <div id="resend-config" class="space-y-6 hidden">
                             <div>
-                                <label class="block text-sm font-bold text-slate-400 mb-2">Segurança (SSL/TLS)</label>
-                                <select id="set-forceSecure"
+                                <label class="block text-sm font-bold text-slate-400 mb-2">Chave da API Resend</label>
+                                <input type="password" id="set-resend-key" placeholder="re_••••••••••••••••"
                                     class="w-full bg-slate-900/50 border border-white/10 rounded-xl px-4 py-3 text-white focus:border-cyan-500 transition-all outline-none">
-                                    <option value="auto">Automático (Padrão)</option>
-                                    <option value="true">Forçar SSL/TLS (Implicit)</option>
-                                    <option value="false">Desativar SSL Direto (STARTTLS)</option>
-                                </select>
-                                <p class="text-[10px] text-slate-500 mt-2">Padrão: Porta 465 usa SSL, 587 usa STARTTLS.
+                                <p class="text-[10px] text-slate-500 mt-2">Crie sua chave em resend.com/api-keys</p>
+                            </div>
+                            <div>
+                                <label class="block text-sm font-bold text-slate-400 mb-2">Domínio Verificado</label>
+                                <input type="text" id="set-resend-domain" placeholder="hdtconecte.hdt.energy"
+                                    class="w-full bg-slate-900/50 border border-white/10 rounded-xl px-4 py-3 text-white focus:border-cyan-500 transition-all outline-none">
+                                <p class="text-[10px] text-slate-500 mt-2">O domínio configurado no seu painel Resend.
                                 </p>
                             </div>
-                            <div>
-                                <label class="block text-sm font-bold text-slate-400 mb-2">Certificado SSL</label>
-                                <label
-                                    class="flex items-center gap-3 p-3 bg-slate-900/50 border border-white/10 rounded-xl cursor-pointer hover:border-cyan-500/50 transition-all">
-                                    <input type="checkbox" id="set-ignoreCert" class="w-4 h-4 accent-cyan-500">
-                                    <span class="text-xs text-slate-300">Ignorar erros de certificado (Inseguro)</span>
-                                </label>
-                                <p class="text-[10px] text-rose-400/70 mt-2 italic">Use apenas se o seu servidor SMTP
-                                    tiver certificado auto-assinado ou expirado.</p>
-                            </div>
-                        </div>
-
-                        <div>
-                            <label class="block text-sm font-bold text-slate-400 mb-2">Senha / Senha de
-                                Aplicativo</label>
-                            <input type="password" id="set-pass" placeholder="••••••••••••••••"
-                                class="w-full bg-slate-900/50 border border-white/10 rounded-xl px-4 py-3 text-white focus:border-cyan-500 transition-all outline-none">
-                            <p class="text-[10px] text-slate-500 mt-2">Use senhas de aplicativo se estiver usando Gmail
-                                ou Outlook.</p>
                         </div>
                     </div>
 
@@ -1799,15 +1832,19 @@
         }
 
         async function testSmtp() {
+            const method = document.querySelector('input[name="send-method"]:checked').value;
             const port = parseInt(document.getElementById('set-port').value);
             const data = {
+                method: method,
                 senderEmail: document.getElementById('set-email').value,
                 senderName: document.getElementById('set-name').value,
                 smtpHost: document.getElementById('set-host').value,
                 smtpPort: port,
                 smtpPassword: document.getElementById('set-pass').value,
                 smtpIgnoreCertErrors: document.getElementById('set-ignoreCert').checked,
-                smtpForceSecure: document.getElementById('set-forceSecure').value
+                smtpForceSecure: document.getElementById('set-forceSecure').value,
+                resendApiKey: document.getElementById('set-resend-key').value,
+                resendDomain: document.getElementById('set-resend-domain').value
             };
 
             showToast('Testando conexão...', 'info');
@@ -1824,7 +1861,7 @@
                     showToast('Falha na conexão: ' + result.error, 'error');
                 }
             } catch (err) {
-                showToast('Erro ao testar SMTP', 'error');
+                showToast('Erro ao testar conexão', 'error');
             }
         }
 
@@ -2323,6 +2360,22 @@
         }
 
         // --- Settings ---
+        function toggleConfigMethod() {
+            const methodEl = document.querySelector('input[name="send-method"]:checked');
+            if (!methodEl) return;
+            const method = methodEl.value;
+            const smtpDiv = document.getElementById('smtp-config');
+            const resendDiv = document.getElementById('resend-config');
+
+            if (method === 'smtp') {
+                smtpDiv.classList.remove('hidden');
+                resendDiv.classList.add('hidden');
+            } else if (method === 'resend') {
+                smtpDiv.classList.add('hidden');
+                resendDiv.classList.remove('hidden');
+            }
+        }
+
         async function loadConfig() {
             try {
                 const config = await (await fetch('/api/marketing/config')).json();
@@ -2334,12 +2387,23 @@
                 document.getElementById('set-pass').value = config.smtpPassword || '';
                 document.getElementById('set-ignoreCert').checked = config.smtpIgnoreCertErrors || false;
                 document.getElementById('set-forceSecure').value = config.smtpForceSecure || 'auto';
+                document.getElementById('set-resend-key').value = config.resendApiKey || '';
+                document.getElementById('set-resend-domain').value = config.resendDomain || '';
+
+                const method = config.method || 'smtp';
+                const radio = document.querySelector(`input[name="send-method"][value="${method}"]`);
+                if (radio) {
+                    radio.checked = true;
+                    toggleConfigMethod();
+                }
             } catch (err) { }
         }
 
         async function saveConfig() {
+            const methodEl = document.querySelector('input[name="send-method"]:checked');
             const port = parseInt(document.getElementById('set-port').value);
             const data = {
+                method: methodEl ? methodEl.value : 'smtp',
                 senderEmail: document.getElementById('set-email').value,
                 senderName: document.getElementById('set-name').value,
                 baseUrl: document.getElementById('set-baseUrl').value,
@@ -2347,7 +2411,9 @@
                 smtpPort: port,
                 smtpPassword: document.getElementById('set-pass').value,
                 smtpIgnoreCertErrors: document.getElementById('set-ignoreCert').checked,
-                smtpForceSecure: document.getElementById('set-forceSecure').value
+                smtpForceSecure: document.getElementById('set-forceSecure').value,
+                resendApiKey: document.getElementById('set-resend-key').value,
+                resendDomain: document.getElementById('set-resend-domain').value
             };
             await fetch('/api/marketing/config', {
                 method: 'POST',
