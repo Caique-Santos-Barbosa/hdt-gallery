@@ -283,7 +283,14 @@ const storage = {
             }
         });
         return Array.from(tags).sort();
-    }
+    },
+    async clearCampaignLogs(campaignId) {
+        const db = await getDb();
+        db.logs = db.logs.filter(l => l.campaignId !== campaignId);
+        await saveDb(db);
+    },
+    getDb,
+    saveDb
 };
 
 module.exports = { storage, initDb };

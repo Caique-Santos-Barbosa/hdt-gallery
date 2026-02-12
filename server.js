@@ -421,9 +421,10 @@ async function runCampaignTask(campaignId) {
     console.log(`[Worker] Campaign ${campaignId}: ${sentEmails.size} already sent, ${targetLeads.length - sentEmails.size} remaining`);
 
     const leadsToSend = targetLeads.filter(l => !sentEmails.has(l.email));
+    console.log(`[Worker] Campaign ${campaignId}: ${leadsToSend.length} leads truly remaining to send`);
 
     if (config.method === 'resend' && leadsToSend.length > 0) {
-      console.log(`[Worker] Campaign ${campaignId}: Using Resend Batch API`);
+      console.log(`[Worker] Campaign ${campaignId}: Using Resend Batch API for ${leadsToSend.length} leads`);
       const batches = chunkArray(leadsToSend, 100);
 
       for (const batch of batches) {
@@ -603,9 +604,7 @@ app.post('/api/marketing/campaigns/:id/restart', async (req, res) => {
     await storage.saveCampaign(campaign);
 
     // Clear logs for this campaign
-    const db = await storage.getDb();
-    db.logs = db.logs.filter(l => l.campaignId !== id);
-    await storage.saveDb(db);
+    await storage.clearCampaignLogs(id);
 
     // Set to running to start over
     await storage.saveCampaign({ ...campaign, status: 'running' });
