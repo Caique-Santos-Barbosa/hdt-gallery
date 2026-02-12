@@ -29,16 +29,15 @@ async function initDb() {
     if (!await fs.exists(DB_PATH)) {
         await fs.writeJson(DB_PATH, defaultDb, { spaces: 2 });
     } else {
-        // Migration: ensure users array exists
         const db = await getDb();
-        if (!db.users) {
-            db.users = defaultDb.users;
-            await saveDb(db);
+        let changed = false;
+        for (const key in defaultDb) {
+            if (!db[key]) {
+                db[key] = defaultDb[key];
+                changed = true;
+            }
         }
-        if (!db.forms) {
-            db.forms = [];
-            await saveDb(db);
-        }
+        if (changed) await saveDb(db);
     }
 }
 
@@ -63,7 +62,7 @@ const storage = {
     },
     async getLeads() {
         const db = await getDb();
-        return db.leads;
+        return db.leads || [];
     },
     async saveLead(lead) {
         const db = await getDb();
@@ -105,7 +104,7 @@ const storage = {
     },
     async getTemplates() {
         const db = await getDb();
-        return db.templates;
+        return db.templates || [];
     },
     async saveTemplate(template) {
         const db = await getDb();
@@ -128,7 +127,7 @@ const storage = {
     },
     async getCampaigns() {
         const db = await getDb();
-        return db.campaigns;
+        return db.campaigns || [];
     },
     async saveCampaign(campaign) {
         const db = await getDb();
