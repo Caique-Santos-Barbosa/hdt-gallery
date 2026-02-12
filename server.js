@@ -1,4 +1,4 @@
-// HDT Conecte Server v1.0.4 - Update: 2026-02-11 23:24
+// HDT Conecte Server v1.0.5 - Update: 2026-02-11 23:37
 const express = require('express');
 const multer = require('multer');
 const path = require('path');
@@ -111,10 +111,13 @@ app.post('/api/marketing/config/test', async (req, res) => {
   const transporter = nodemailer.createTransport({
     host: config.smtpHost,
     port: config.smtpPort,
-    secure: config.smtpSecure,
+    secure: config.smtpForceSecure === 'true' ? true : (config.smtpForceSecure === 'false' ? false : (config.smtpPort === 465)),
     auth: {
       user: config.senderEmail,
       pass: config.smtpPassword
+    },
+    tls: {
+      rejectUnauthorized: config.smtpIgnoreCertErrors || false
     }
   });
 
@@ -367,17 +370,23 @@ async function runCampaignTask(campaignId) {
     }
 
     console.log(`[Worker] Campaign ${campaignId}: Starting mail transporter`);
+    const smtpSecure = config.smtpForceSecure === 'true' ? true : (config.smtpForceSecure === 'false' ? false : (config.smtpPort === 465));
+    console.log(`[Worker] Campaign ${campaignId}: SMTP Config: host=${config.smtpHost}, port=${config.smtpPort}, secure=${smtpSecure}, rejectUnauthorized=${config.smtpIgnoreCertErrors || false}`);
+
     const transporter = nodemailer.createTransport({
       host: config.smtpHost,
       port: config.smtpPort,
-      secure: config.smtpSecure,
+      secure: smtpSecure,
       auth: {
         user: config.senderEmail,
         pass: config.smtpPassword
       },
-      connectionTimeout: 10000, // 10s
-      greetingTimeout: 10000,   // 10s
-      socketTimeout: 15000      // 15s
+      tls: {
+        rejectUnauthorized: config.smtpIgnoreCertErrors || false
+      },
+      connectionTimeout: 15000, // 15s
+      greetingTimeout: 15000,   // 15s
+      socketTimeout: 20000      // 20s
     });
 
     // Find where we left off (basic resilience) - Only skip successfully SENT emails

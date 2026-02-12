@@ -12,7 +12,10 @@ const defaultDb = {
         smtpHost: '',
         smtpPort: 465,
         smtpSecure: true,
-        smtpPassword: ''
+        smtpPassword: '',
+        smtpIgnoreCertErrors: false,
+        smtpForceSecure: 'auto', // 'auto', 'true', 'false'
+        baseUrl: ''
     },
     leads: [],
     templates: [],

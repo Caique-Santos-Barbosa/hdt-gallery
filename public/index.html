@@ -566,9 +566,28 @@
                             </div>
                         </div>
 
-                        <div class="p-4 bg-slate-900/80 border border-white/5 rounded-xl text-xs text-slate-400">
-                            A segurança da conexão é configurada automaticamente: porta <b>465</b> usa SSL direto, porta
-                            <b>587</b> usa STARTTLS. Ambas são seguras.
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                            <div>
+                                <label class="block text-sm font-bold text-slate-400 mb-2">Segurança (SSL/TLS)</label>
+                                <select id="set-forceSecure"
+                                    class="w-full bg-slate-900/50 border border-white/10 rounded-xl px-4 py-3 text-white focus:border-cyan-500 transition-all outline-none">
+                                    <option value="auto">Automático (Padrão)</option>
+                                    <option value="true">Forçar SSL/TLS (Implicit)</option>
+                                    <option value="false">Desativar SSL Direto (STARTTLS)</option>
+                                </select>
+                                <p class="text-[10px] text-slate-500 mt-2">Padrão: Porta 465 usa SSL, 587 usa STARTTLS.
+                                </p>
+                            </div>
+                            <div>
+                                <label class="block text-sm font-bold text-slate-400 mb-2">Certificado SSL</label>
+                                <label
+                                    class="flex items-center gap-3 p-3 bg-slate-900/50 border border-white/10 rounded-xl cursor-pointer hover:border-cyan-500/50 transition-all">
+                                    <input type="checkbox" id="set-ignoreCert" class="w-4 h-4 accent-cyan-500">
+                                    <span class="text-xs text-slate-300">Ignorar erros de certificado (Inseguro)</span>
+                                </label>
+                                <p class="text-[10px] text-rose-400/70 mt-2 italic">Use apenas se o seu servidor SMTP
+                                    tiver certificado auto-assinado ou expirado.</p>
+                            </div>
                         </div>
 
                         <div>
@@ -1756,7 +1775,8 @@
                 smtpHost: document.getElementById('set-host').value,
                 smtpPort: port,
                 smtpPassword: document.getElementById('set-pass').value,
-                smtpSecure: port === 465
+                smtpIgnoreCertErrors: document.getElementById('set-ignoreCert').checked,
+                smtpForceSecure: document.getElementById('set-forceSecure').value
             };
 
             showToast('Testando conexão...', 'info');
@@ -2250,6 +2270,8 @@
                 document.getElementById('set-host').value = config.smtpHost || '';
                 document.getElementById('set-port').value = config.smtpPort || '';
                 document.getElementById('set-pass').value = config.smtpPassword || '';
+                document.getElementById('set-ignoreCert').checked = config.smtpIgnoreCertErrors || false;
+                document.getElementById('set-forceSecure').value = config.smtpForceSecure || 'auto';
             } catch (err) { }
         }
 
@@ -2262,7 +2284,8 @@
                 smtpHost: document.getElementById('set-host').value,
                 smtpPort: port,
                 smtpPassword: document.getElementById('set-pass').value,
-                smtpSecure: port === 465
+                smtpIgnoreCertErrors: document.getElementById('set-ignoreCert').checked,
+                smtpForceSecure: document.getElementById('set-forceSecure').value
             };
             await fetch('/api/marketing/config', {
                 method: 'POST',
