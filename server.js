@@ -485,27 +485,30 @@ async function runCampaignTask(campaignId) {
                   try {
                     const responseData = JSON.parse(resBody);
                     if (responseData.data && Array.isArray(responseData.data)) {
-                      // Update logs with providerId (order is preserved in Resend Batch)
-                      for (let i = 0; i < responseData.data.length; i++) {
-                        const resendItem = responseData.data[i];
+                      // Prepare bulk logs with providerId (order is preserved in Resend Batch)
+                      const logsToBatch = responseData.data.map((resendItem, i) => {
                         const localItem = emailBatch[i];
-                        if (resendItem.id && localItem.metadata.logId) {
-                          await storage.addLog({
-                            id: localItem.metadata.logId,
-                            campaignId,
-                            leadId: localItem.metadata.leadId,
-                            email: localItem.to,
-                            status: 'sent',
-                            providerId: resendItem.id
-                          });
-                        }
-                      }
+                        return {
+                          id: localItem.metadata.logId,
+                          campaignId,
+                          leadId: localItem.metadata.leadId,
+                          email: localItem.to,
+                          status: 'sent',
+                          providerId: resendItem.id
+                        };
+                      });
+                      await storage.addLogs(logsToBatch);
                       resolve();
                     } else {
-                      // Fallback if data is missing
-                      for (const e of emailBatch) {
-                        await storage.addLog({ id: e.metadata.logId, campaignId, leadId: e.metadata.leadId, email: e.to, status: 'sent' });
-                      }
+                      // Fallback bulk logs
+                      const logsToBatch = emailBatch.map(e => ({
+                        id: e.metadata.logId,
+                        campaignId,
+                        leadId: e.metadata.leadId,
+                        email: e.to,
+                        status: 'sent'
+                      }));
+                      await storage.addLogs(logsToBatch);
                       resolve();
                     }
                   } catch (e) {
@@ -525,9 +528,15 @@ async function runCampaignTask(campaignId) {
           console.log(`[Worker] Campaign ${campaignId}: Sent batch of ${emailBatch.length} emails`);
         } catch (err) {
           console.error(`[Worker] Campaign ${campaignId}: Batch failed:`, err.message);
-          for (const e of emailBatch) {
-            await storage.addLog({ id: e.metadata.logId, campaignId, leadId: e.metadata.leadId, email: e.to, status: 'failed', errorMsg: err.message });
-          }
+          const failedLogs = emailBatch.map(e => ({
+            id: e.metadata.logId,
+            campaignId,
+            leadId: e.metadata.leadId,
+            email: e.to,
+            status: 'failed',
+            errorMsg: err.message
+          }));
+          await storage.addLogs(failedLogs);
         }
 
         // Wait interval between batches

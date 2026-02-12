@@ -1,8 +1,9 @@
-// HDT Conecte Storage v1.0.1
+// HDT Conecte Storage v1.1.0 - Robustness Update
 const fs = require('fs-extra');
 const path = require('path');
 
 const DB_PATH = path.join(__dirname, 'data', 'db.json');
+const BACKUP_PATH = path.join(__dirname, 'data', 'db.json.bak');
 
 const defaultDb = {
     config: {
@@ -14,11 +15,11 @@ const defaultDb = {
         smtpSecure: true,
         smtpPassword: '',
         smtpIgnoreCertErrors: false,
-        smtpForceSecure: 'auto', // 'auto', 'true', 'false'
+        smtpForceSecure: 'auto',
         resendApiKey: 're_ALtAvuYB_3NLwVzeetWhuN6Q9AdtakEkZ',
         resendDomain: '',
         resendFromEmail: '',
-        baseUrl: ''
+        baseUrl: 'https://hdtconecte.hdt.energy/'
     },
     leads: [],
     templates: [],
@@ -31,31 +32,81 @@ const defaultDb = {
     ]
 };
 
+// Singleton cache to prevent race conditions during heavy I/O
+let dbCache = null;
+let isSaving = false;
+
 async function initDb() {
     await fs.ensureDir(path.join(__dirname, 'data'));
     const db = await getDb();
-    // This will write the file if it doesn't exist or was corrupted
-    await saveDb(db);
+    // Verify default structure
+    let updated = false;
+    for (const key in defaultDb) {
+        if (!db[key]) {
+            db[key] = defaultDb[key];
+            updated = true;
+        }
+    }
+    if (updated) await saveDb(db);
+
+    // Create initial backup if not exists
+    if (!await fs.exists(BACKUP_PATH) && await fs.exists(DB_PATH)) {
+        await fs.copy(DB_PATH, BACKUP_PATH);
+    }
 }
 
 async function getDb() {
+    if (dbCache) return dbCache;
+
     try {
-        if (!await fs.exists(DB_PATH)) return defaultDb;
-        const db = await fs.readJson(DB_PATH);
-        return db || defaultDb;
+        if (!await fs.exists(DB_PATH)) {
+            dbCache = JSON.parse(JSON.stringify(defaultDb));
+            return dbCache;
+        }
+
+        const raw = await fs.readFile(DB_PATH, 'utf8');
+        if (!raw || raw.trim() === '') {
+            console.warn('DB file is empty, using defaults');
+            dbCache = JSON.parse(JSON.stringify(defaultDb));
+            return dbCache;
+        }
+
+        dbCache = JSON.parse(raw);
+        return dbCache;
     } catch (err) {
-        console.error('CRITICAL: DB Read Error (Corrupted JSON). Using fallback defaults.', err);
-        return defaultDb;
+        // CRITICAL: If file exists but failed to read/parse, DON'T return empty defaults
+        // This prevents overwriting the real DB with an empty one.
+        console.error('CRITICAL: DB Read/Parse Error.', err);
+        if (await fs.exists(DB_PATH)) {
+            throw new Error('Database file exists but is corrupted or locked. Access denied to prevent data loss.');
+        }
+        dbCache = JSON.parse(JSON.stringify(defaultDb));
+        return dbCache;
     }
 }
 
 async function saveDb(db) {
+    if (!db) return;
+    dbCache = db; // Always update cache
+
     try {
+        // Atomic write with temp file
         const tempPath = DB_PATH + '.tmp';
         await fs.writeJson(tempPath, db, { spaces: 2 });
+
+        // Before moving, check if we should create a backup (safety first)
+        if (await fs.exists(DB_PATH)) {
+            const stats = await fs.stat(DB_PATH);
+            // Only backup if current file has content (don't backup a corrupted small file)
+            if (stats.size > 100) {
+                await fs.copy(DB_PATH, BACKUP_PATH, { overwrite: true });
+            }
+        }
+
         await fs.move(tempPath, DB_PATH, { overwrite: true });
     } catch (err) {
         console.error('CRITICAL: DB Save Error:', err);
+        throw err; // Propagate for visibility
     }
 }
 
@@ -168,16 +219,19 @@ const storage = {
     },
     async addLog(log) {
         const db = await getDb();
-        log.id = Date.now() + Math.random().toString(36).substr(2, 9);
-        log.sentAt = new Date();
-        log.openedAt = null;
-        log.deliveredAt = null;
-        log.bouncedAt = null;
-        log.complainedAt = null;
-        log.unsubscribedAt = null;
-        log.providerId = log.providerId || null;
-        log.clicks = [];
-        db.logs.push(log);
+        const fullLog = {
+            id: Date.now() + Math.random().toString(36).substr(2, 9),
+            sentAt: new Date(),
+            openedAt: null,
+            deliveredAt: null,
+            bouncedAt: null,
+            complainedAt: null,
+            unsubscribedAt: null,
+            providerId: log.providerId || null,
+            clicks: [],
+            ...log
+        };
+        db.logs.push(fullLog);
 
         const campIndex = db.campaigns.findIndex(c => c.id === log.campaignId);
         if (campIndex > -1) {
@@ -186,6 +240,44 @@ const storage = {
         }
 
         await saveDb(db);
+        return fullLog;
+    },
+    async addLogs(logsArray) {
+        if (!logsArray || logsArray.length === 0) return [];
+        const db = await getDb();
+        const now = new Date();
+        const fullLogs = logsArray.map(log => ({
+            id: Date.now() + Math.random().toString(36).substr(2, 9) + Math.random().toString(36).substr(2, 5),
+            sentAt: now,
+            openedAt: null,
+            deliveredAt: null,
+            bouncedAt: null,
+            complainedAt: null,
+            unsubscribedAt: null,
+            providerId: log.providerId || null,
+            clicks: [],
+            ...log
+        }));
+        db.logs.push(...fullLogs);
+
+        // Bulk update campaign metrics
+        const campaignUpdates = {};
+        fullLogs.forEach(log => {
+            if (!campaignUpdates[log.campaignId]) campaignUpdates[log.campaignId] = { sent: 0, failed: 0 };
+            if (log.status === 'sent') campaignUpdates[log.campaignId].sent++;
+            if (log.status === 'failed') campaignUpdates[log.campaignId].failed++;
+        });
+
+        for (const campId in campaignUpdates) {
+            const campIndex = db.campaigns.findIndex(c => c.id === campId);
+            if (campIndex > -1) {
+                db.campaigns[campIndex].sentCount = (db.campaigns[campIndex].sentCount || 0) + campaignUpdates[campId].sent;
+                db.campaigns[campIndex].failedCount = (db.campaigns[campIndex].failedCount || 0) + campaignUpdates[campId].failed;
+            }
+        }
+
+        await saveDb(db);
+        return fullLogs;
     },
     async updateLog(logId, data) {
         const db = await getDb();
