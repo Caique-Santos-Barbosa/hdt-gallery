@@ -1,4 +1,4 @@
-// HDT Conecte Server v1.0.2 - Update: 2026-02-11 23:12
+// HDT Conecte Server v1.0.3 - Update: 2026-02-11 23:18
 const express = require('express');
 const multer = require('multer');
 const path = require('path');
@@ -353,11 +353,20 @@ async function runCampaignTask(campaignId) {
       return campaign.targetTags.some(t => (l.tags || []).includes(t));
     });
 
+    console.log(`[Worker] Campaign ${campaignId}: Found ${targetLeads.length} target leads`);
+
     // Update total leads if not set
     if (campaign.totalLeads !== targetLeads.length) {
       await storage.saveCampaign({ ...campaign, totalLeads: targetLeads.length });
     }
 
+    if (targetLeads.length === 0) {
+      console.log(`[Worker] Campaign ${campaignId}: No leads to send. Completing.`);
+      await storage.saveCampaign({ id: campaignId, status: 'completed' });
+      return;
+    }
+
+    console.log(`[Worker] Campaign ${campaignId}: Starting mail transporter`);
     const transporter = nodemailer.createTransport({
       host: config.smtpHost,
       port: config.smtpPort,
@@ -365,7 +374,10 @@ async function runCampaignTask(campaignId) {
       auth: {
         user: config.senderEmail,
         pass: config.smtpPassword
-      }
+      },
+      connectionTimeout: 10000, // 10s
+      greetingTimeout: 10000,   // 10s
+      socketTimeout: 15000      // 15s
     });
 
     // Find where we left off (basic resilience)
@@ -373,24 +385,24 @@ async function runCampaignTask(campaignId) {
     const sentEmails = new Set(logs.map(l => l.email));
 
     for (const lead of targetLeads) {
-      if (!runningCampaigns.has(campaignId)) break; // Stopped manually
+      if (!runningCampaigns.has(campaignId)) {
+        console.log(`[Worker] Campaign ${campaignId}: Stopped manually`);
+        break;
+      }
       if (sentEmails.has(lead.email)) continue; // Already sent
+
+      console.log(`[Worker] Campaign ${campaignId}: Sending to ${lead.email}`);
 
       let html = template.htmlContent.replace(/\{\{name\}\}/gi, lead.name || '');
       html = html.replace(/\{\{email\}\}/gi, lead.email);
       html = html.replace(/\{\{company\}\}/gi, lead.empresa || '');
       html = html.replace(/\{\{button_link\}\}/gi, campaign.buttonLink || '#');
 
-      // Create log first to get ID for tracking
       const logId = Date.now() + Math.random().toString(36).substr(2, 9);
-      // Since it's a background worker, req is not available. 
-      // We should probably store the BASE_URL in config.
       const baseUrl = config.baseUrl || 'http://localhost:3000';
 
-      // Inject Open Tracker
       html += `<img src="${baseUrl}/api/t/o/${logId}" width="1" height="1" style="display:none">`;
 
-      // Rewrite Links (Simple regex for <a> tags)
       html = html.replace(/href="([^"]+)"/gi, (match, url) => {
         if (url.startsWith('http') && !url.includes('/api/t/c/')) {
           return `href="${baseUrl}/api/t/c/${logId}?u=${encodeURIComponent(url)}&cid=${campaignId}"`;
@@ -405,13 +417,15 @@ async function runCampaignTask(campaignId) {
           subject: campaign.subject,
           html: html
         });
+        console.log(`[Worker] Campaign ${campaignId}: Successfully sent to ${lead.email}`);
         await storage.addLog({ id: logId, campaignId, leadId: lead.id, email: lead.email, status: 'sent' });
       } catch (err) {
+        console.error(`[Worker] Campaign ${campaignId}: Failed to send to ${lead.email}:`, err.message);
         await storage.addLog({ id: logId, campaignId, leadId: lead.id, email: lead.email, status: 'failed', errorMsg: err.message });
       }
 
-      // Interval logic (Wait between emails)
       const interval = (campaign.interval || 60) * 1000;
+      console.log(`[Worker] Campaign ${campaignId}: Waiting ${interval / 1000}s for next lead...`);
       await new Promise(r => setTimeout(r, interval));
     }
 
